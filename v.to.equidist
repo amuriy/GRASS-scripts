@@ -1,0 +1,353 @@
+#!/bin/sh
+############################################################################
+#
+# MODULE:       v.to.equidist
+# AUTHOR(S):    Alexander Mury
+#               (Institute of Environmental Geoscience, Moscow, Russia)  
+#
+# PURPOSE:      Generate vector points or line segments along a given vector 
+#               line(s) with the equal distances (uses v.segment)
+#
+# COPYRIGHT:    (C) Alexander Mury / GRASS Development Team; 08-09/2011 
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+############################################################################
+#%Module 
+#%  description: 
+#%  keywords: vector
+#%End
+#%Option
+#%  key: input
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  key_desc: name
+#%  description: Name of input vector map
+#%  gisprompt: old,vector,vector
+#%End
+#%Option
+#%  key: output
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  key_desc: name
+#%  description: Name of output vector map
+#%  gisprompt: new,vector,vector
+#%End
+#%Option
+#%  key: distance
+#%  type: double
+#%  required: yes
+#%  description: Distance between points along line  
+#%End
+#%Option
+#%  key: offset
+#%  type: double
+#%  required: no
+#%  multiple: no
+#%  description: The side offset (orthogonal distance from the line). Positive side offsets are to the right side of the line going forward, negative offsets are to the left
+#%End
+#%Option
+#% key: units
+#% type: string
+#% required: no
+#% multiple: no
+#% options: mi,miles,f,feet,me,meters,k,kilometers,a,acres,h,hectares,r,radians,d,degrees
+#% label: Units
+#% description: mi(les),f(eet),me(ters),k(ilometers),a(cres),h(ectares),r(adians),d(egrees)
+#%End
+#%Flag
+#%  key: r
+#%  description: Reverse segmenting
+#%End
+#%Flag
+#%  key: l
+#%  description: Create line segments instead of points 
+#%End
+#%Flag
+#%  key: b
+#%  description: Create "broken" line segments instead of continuous
+#%End
+#%Flag
+#%  key: t
+#%  description: Don't create table for points' map
+#%End
+
+if [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 1>&2
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+    exec g.parser "$0" "$@"
+fi
+
+
+## set environment so that awk works properly in all languages ##
+unset LC_ALL
+export LC_NUMERIC=C
+
+############################################################
+cleanup()
+{
+    g.mremove -f vect="TMP*" --quiet
+    \rm -f "$TMP1*" 
+}
+############################################################
+
+## what to do in case of user break:
+exitprocedure()
+{
+    echo "User break!"
+    cleanup
+    exit 1
+}
+
+## shell check for user break (signal list: trap -l)
+trap "exitprocedure" 2 3 15
+
+############################################################
+
+## check for awk
+
+if [ ! -x "$(which awk)" ] ; then
+    g.message -e "awk required, please install awk or gawk first"
+    exit 1
+fi
+
+## does map exist?
+eval "$(g.gisenv)"
+eval "$(g.findfile mapset="$MAPSET" element=vector file="$GIS_OPT_INPUT")"
+if [ ! "$file" ]; then
+    g.message -e "Vector map <"$GIS_OPT_INPUT"> not found"
+    exit 1
+fi
+
+## setup temporary files
+
+# create temporary file for length's file
+TMP1="$(g.tempfile pid=$$)"
+if [ "$?" -ne 0 ] || [ -z "$TMP1" ] ; then
+    g.message -e "ERROR: Unable to create temporary files."
+    exit 1
+fi
+
+############################################################
+
+# do it
+
+if [ -z "$GIS_OPT_UNITS" ]; then
+    GIS_OPT_UNITS="me"
+fi
+
+# check for "-r" flag (reverse segmenting)
+if [ "$GIS_FLAG_R" -eq 1 ]; then
+    g.copy vect="$GIS_OPT_INPUT",TMP_edit --q
+    v.edit map=TMP_edit tool=flip cats=1-999999 --q
+    GIS_OPT_INPUT=TMP_edit
+fi
+
+# get lines' length
+v.to.db -p map="$GIS_OPT_INPUT" option=length units="$GIS_OPT_UNITS" --q  >> "$TMP1"
+
+
+if [ -n "$GIS_OPT_OFFSET" ]; then
+    OFFSET="$GIS_OPT_OFFSET"    
+else
+    OFFSET=""    
+fi
+
+# check for lines flags ("-l" and "-b")
+if [ "$GIS_FLAG_B" -eq 1 ] && [ "$GIS_FLAG_L" -eq 0 ]; then
+    g.message -e "Please choose also flag "-l" to make line segments instead of points"
+    exit 1
+fi
+
+
+# loop over all lines and get equidistant points
+# if flag "-l" is active, do it all with line segments
+if [ "$GIS_FLAG_L" -eq 1 ]; then
+    cat "$TMP1" | while read LINE; do
+	LINE_CAT=$(echo $LINE | cut -d"|" -f1)
+	LINE_LENGTH=$(echo $LINE | cut -d"|" -f2)
+	
+	if [ "$GIS_FLAG_B" -eq 1 ]; then 
+	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+PTS = 0; STEP = DIST; 
+do {
+NEXT_PTS = PTS + 1;
+NEXT_DIST = DIST + STEP;
+printf("L "); 
+printf("%d",NEXT_PTS); printf(" ");
+printf("%d",CAT); printf(" "); 
+printf("%f",NEXT_DIST); printf(" ");
+printf("%f",OFFSET_); printf(" ");
+printf("%f\n",DIST); 
+PTS = PTS + 1;
+DIST = DIST + STEP + STEP;
+} while ( DIST <= MAX_DIST )
+}' >> "$TMP1.dist.lines"
+	
+	else
+	    
+	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+PTS = 0; STEP = DIST; 
+do {
+NEXT_PTS = PTS + 1;
+NEXT_DIST = DIST + STEP;
+printf("L "); 
+printf("%d",NEXT_PTS); printf(" ");
+printf("%d",CAT); printf(" "); 
+printf("%f",NEXT_DIST); printf(" ");
+printf("%f",OFFSET_); printf(" ");
+printf("%f\n",DIST); 
+PTS = PTS + 1;
+DIST = DIST + STEP;
+} while ( DIST <= MAX_DIST )
+}' >> "$TMP1.dist.lines"
+
+	fi	    
+    done
+
+    awk '{ print $1, $2, $3, $6, $4, $5 }' "$TMP1.dist.lines" > "$TMP1.dist.lines.all"
+
+    IF_ZERO=$(awk '{print $6}' "$TMP1.dist.lines.all" | head -n1)
+    if [ "$IF_ZERO" = 0.000000 ]; then
+	awk '{ print $1, $2, $3, $4, $5 }' "$TMP1.dist.lines.all" > "$TMP1.dist.lines.clean"
+    else
+	mv "$TMP1.dist.lines.all" "$TMP1.dist.lines.clean"
+    fi
+
+# segment all with v.segment 
+    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" file="$TMP1.dist.lines.clean"
+        
+# assign new cat to every segment line
+    v.category input="$GIS_OPT_OUTPUT" output=TMP_nocats option=del --q
+    v.category input=TMP_nocats output=TMP_newcats option=add step=1 --q
+    g.rename vect=TMP_newcats,"$GIS_OPT_OUTPUT" --o --q > /dev/null 2>&1
+    
+
+# create attr.table and populate it 
+    if [ "$GIS_FLAG_T" -eq 0 ]; then
+	v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,segm_along int,dist_start double,dist_end double,offset double" layer=1 --q
+	
+	cat -n "$TMP1.dist.lines.clean" | awk '{ print $2, $1, $3, $4, $5, $6, $7 }' > "$TMP1.lines.all"      
+   
+	echo ""
+	echo "--------------------"
+	echo "Please wait while attribute table <"$GIS_OPT_OUTPUT"> is updated"
+	echo "--------------------"
+	
+	cat "$TMP1.lines.all" | while read PTS; do
+	    CAT=$(echo "$PTS" | cut -d" " -f2)
+	    SEGM_ALONG=$(echo "$PTS" | cut -d" " -f3)
+	    LCAT=$(echo "$PTS" | cut -d" " -f4)
+	    DIST_START=$(echo "$PTS" | cut -d" " -f5)
+	    DIST_END=$(echo "$PTS" | cut -d" " -f6)
+	    OFFSET=$(echo "$PTS" | cut -d" " -f7)
+	    
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET lcat="$LCAT" WHERE cat="$CAT";" > "$TMP1.sql"
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET segm_along="$SEGM_ALONG" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET dist_start="$DIST_START" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET dist_end="$DIST_END" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    
+	    
+	    if [ -n "$OFFSET" ]; then
+		echo "UPDATE "$GIS_OPT_OUTPUT" SET offset="$OFFSET" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    fi
+	    
+	    cat "$TMP1.sql" | db.execute
+	
+	done
+	echo ""
+	echo "DONE!"
+	echo ""
+    fi
+    
+else
+
+    cat "$TMP1" | while read LINE; do
+	LINE_CAT=$(echo $LINE | cut -d"|" -f1)
+	LINE_LENGTH=$(echo $LINE | cut -d"|" -f2)
+    
+	echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+PTS = 0; STEP = DIST; 
+do {
+NEXT_PTS = PTS + 1;
+printf("P "); 
+printf("%d",NEXT_PTS); printf(" ");
+printf("%d",CAT); printf(" "); 
+printf("%f",OFFSET_); printf(" ");
+printf("%f\n",DIST); 
+PTS = PTS + 1;
+DIST = DIST + STEP;
+} while ( DIST <= MAX_DIST )
+}' >> "$TMP1.dist"
+    done
+
+    awk '{ print $1, $2, $3, $5, $4 }' "$TMP1.dist" > "$TMP1.dist.pts.all"
+
+    IF_ZERO=$(awk '{print $5}' "$TMP1.dist.pts.all" | head -n1)
+    if [ "$IF_ZERO" = 0.000000 ]; then
+	awk '{ print $1, $2, $3, $4 }' "$TMP1.dist.pts.all" > "$TMP1.dist.pts.clean"
+    else
+	mv "$TMP1.dist.pts.all" "$TMP1.dist.pts.clean"
+    fi
+
+# segment all with v.segment 
+    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" file="$TMP1.dist.pts.clean" 
+
+# assign new cat to every point
+    v.category input="$GIS_OPT_OUTPUT" output=TMP_nocats option=del --q
+    v.category input=TMP_nocats output=TMP_newcats option=add step=1 --q
+    g.rename vect=TMP_newcats,"$GIS_OPT_OUTPUT" --o --q > /dev/null 2>&1
+
+
+# create attr.table and populate it 
+    if [ "$GIS_FLAG_T" -eq 0 ]; then
+	v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,cat_along int,dist_along double,offset double" layer=1 --q
+	
+	cat -n "$TMP1.dist.pts.clean" | awk '{ print $2, $1, $3, $4, $5, $6 }' > "$TMP1.all"      
+	
+	echo ""
+	echo "--------------------"
+	echo "Please wait while attribute table <"$GIS_OPT_OUTPUT"> is updated"
+	echo "--------------------"
+
+	cat "$TMP1.all" | while read PTS; do
+	    CAT=$(echo "$PTS" | cut -d" " -f2)
+	    CAT_ALONG=$(echo "$PTS" | cut -d" " -f3)
+	    LCAT=$(echo "$PTS" | cut -d" " -f4)
+	    DIST_ALONG=$(echo "$PTS" | cut -d" " -f5)
+	    OFFSET=$(echo "$PTS" | cut -d" " -f6)
+	    
+	    
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET lcat="$LCAT" WHERE cat="$CAT";" > "$TMP1.sql"
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET cat_along="$CAT_ALONG" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    echo "UPDATE "$GIS_OPT_OUTPUT" SET dist_along="$DIST_ALONG" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    
+	    if [ -n "$OFFSET" ]; then
+		echo "UPDATE "$GIS_OPT_OUTPUT" SET offset="$OFFSET" WHERE cat="$CAT";" >> "$TMP1.sql"
+	    fi
+	    
+	    cat "$TMP1.sql" | db.execute
+
+	done
+	echo ""
+	echo "DONE!"
+	echo ""
+    fi
+fi
+    
+cleanup
+
+exit 0
