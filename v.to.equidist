@@ -238,7 +238,12 @@ DIST = DIST + STEP;
 
 # create attr.table and populate it 
     if [ "$GIS_FLAG_T" -eq 0 ]; then
-	v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,segm_along int,dist_start double,dist_end double,offset double" layer=1 --q
+	if [ -n "$GIS_OPT_OFFSET" ]; then
+	    v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,segm_along int,dist_start double,dist_end double,offset double" layer=1 --q
+	else
+	    v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,segm_along int,dist_start double,dist_end double" layer=1 --q
+	fi
+	
 	
 	cat -n "$TMP1.dist.lines.clean" | awk '{ print $2, $1, $3, $4, $5, $6, $7 }' > "$TMP1.lines.all"      
    
@@ -314,7 +319,12 @@ DIST = DIST + STEP;
 
 # create attr.table and populate it 
     if [ "$GIS_FLAG_T" -eq 0 ]; then
-	v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,cat_along int,dist_along double,offset double" layer=1 --q
+	if [ -n "$GIS_OPT_OFFSET" ]; then
+	    v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,cat_along int,dist_along double,offset double" layer=1 --q
+	else
+	    v.db.addtable map="$GIS_OPT_OUTPUT" columns="cat int,lcat int,cat_along int,dist_along double" layer=1 --q
+	fi
+
 	
 	cat -n "$TMP1.dist.pts.clean" | awk '{ print $2, $1, $3, $4, $5, $6 }' > "$TMP1.all"      
 	
