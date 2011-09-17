@@ -1,5 +1,5 @@
 Alexander Muriy, Moscow, Russia
-==============================
+==================================
 
 These modules were written for GRASS 6.4.* on Linux system to help me in geospatial work. 
 
@@ -7,6 +7,6 @@ To use these shell scripts just copy them to some catalog in your system PATH (o
 
 Scripts (I hope) have no "bashisms". If you find some errors, please, write me (amuriy AT gmail DOT com).
 
-------------------------------
+----------------------------------
 
 

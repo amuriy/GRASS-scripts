@@ -2,13 +2,14 @@
 ############################################################################
 #
 # MODULE:       v.to.equidist
-# AUTHOR(S):    Alexander Mury
+# AUTHOR(S):    Alexander Muriy
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               e-mail: amuriy AT gmail DOT com               
 #
-# PURPOSE:      Generate vector points or line segments along a given vector 
+# PURPOSE:      Generates vector points or line segments along a given vector 
 #               line(s) with the equal distances (uses v.segment)
 #
-# COPYRIGHT:    (C) Alexander Mury / GRASS Development Team; 08-09/2011 
+# COPYRIGHT:    (C) 08-09/2011 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by

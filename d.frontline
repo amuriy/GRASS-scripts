@@ -2,13 +2,14 @@
 ############################################################################
 #
 # MODULE:       d.frontline
-# AUTHOR(S):    Alexander Mury
+# AUTHOR(S):    Alexander Muriy
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               e-mail: amuriy AT gmail DOT com 
 #
-# PURPOSE:      Display frontlines on the graphic monitor using d.graph
+# PURPOSE:      Displays frontlines on the graphic monitor using d.graph
 #               (optionally save graph file and ps.map file)
 #
-# COPYRIGHT:    (C) 2011 Alexander Mury / GRASS Development Team
+# COPYRIGHT:    (C) 05-06/2011 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
