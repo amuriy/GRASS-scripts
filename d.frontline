@@ -27,7 +27,7 @@
 #%  keywords: display, graphics, vector, symbology
 #%End
 #%Option
-#%  key: input
+#%  key: map
 #%  type: string
 #%  required: yes
 #%  multiple: no
@@ -205,21 +205,21 @@ fi
 eval "$(g.gisenv)"
 eval "$(g.findfile mapset="$MAPSET" element=vector file="$GIS_OPT_INPUT")"
 if [ ! "$file" ]; then
-    g.message -e "Vector map <"$GIS_OPT_INPUT"> not found"
+    g.message -e "Vector map <"$GIS_OPT_MAP"> not found"
     exit 1
 fi
 
 
 ## check for lines and boundaries in input map
 
-eval "$(v.info -t "$GIS_OPT_INPUT")"
+eval "$(v.info -t "$GIS_OPT_MAP")"
 
 if [ "$lines" -eq 0 ] && [ "$boundaries" -eq 0 ]; then
     g.message -e "Input vector map not contain lines or boundaries"
     exit 1
 fi
 
-for vars in "$(v.info -t "$GIS_OPT_INPUT" | cut -d"=" -f1)"; do
+for vars in "$(v.info -t "$GIS_OPT_MAP" | cut -d"=" -f1)"; do
     unset -v "$vars"
 done
 
@@ -247,12 +247,12 @@ if [ -n "$GIS_OPT_WHERE" ] && [ -n "$GIS_OPT_LIST" ]; then
 fi
 
 
-## is input vector displayed now ?
+s## is input vector displayed now ?
 
-d.save -oc | grep -e "d.vect map=" | cut -d'"' -f2 | grep -e "$GIS_OPT_INPUT" --quiet
+d.save -oc | grep -e "d.vect map=" | cut -d'"' -f2 | grep -e "$GIS_OPT_MAP" --quiet
 
 if [ "$?" -eq 1 ]; then
-    g.message -e "Input vector map <""$GIS_OPT_INPUT""> is not on the monitor. Please use <d.vect "$GIS_OPT_INPUT" ..> to display it"
+    g.message -e "Input vector map <""$GIS_OPT_MAP""> is not on the monitor. Please use <d.vect "$GIS_OPT_MAP" ..> to display it"
     exit 1
 fi
 
@@ -314,16 +314,16 @@ if [ "$GIS_FLAG_M" -eq 1 ]; then
 - M: draw box with middle mouse button to remove from display
 - R: quit and save selected vectors to new map"
     
-    d.extract input="$GIS_OPT_INPUT" output=TMP_select type=line,boundary hcolor="$GIS_OPT_HCOLOR" --quiet
+    d.extract input="$GIS_OPT_MAP" output=TMP_select type=line,boundary hcolor="$GIS_OPT_HCOLOR" --quiet
 elif  [ "$GIS_FLAG_M" -eq 0 -a -z "$GIS_OPT_WHERE" -a -z "$GIS_OPT_LIST" ]; then
-    g.copy vect="$GIS_OPT_INPUT",TMP_select --quiet
+    g.copy vect="$GIS_OPT_MAP",TMP_select --quiet
 fi
 
 
 if [ -n "$GIS_OPT_WHERE" ]; then
-    v.extract -t input="$GIS_OPT_INPUT" output=TMP_select type=line,boundary where="$GIS_OPT_WHERE" layer="$GIS_OPT_LAYER" --quiet
+    v.extract -t input="$GIS_OPT_MAP" output=TMP_select type=line,boundary where="$GIS_OPT_WHERE" layer="$GIS_OPT_LAYER" --quiet
 elif [ -n "$GIS_OPT_LIST" ]; then
-    v.extract -t input="$GIS_OPT_INPUT" output=TMP_select type=line,boundary list="$GIS_OPT_LIST" layer="$GIS_OPT_LAYER" --quiet
+    v.extract -t input="$GIS_OPT_MAP" output=TMP_select type=line,boundary list="$GIS_OPT_LIST" layer="$GIS_OPT_LAYER" --quiet
 fi
 
 
@@ -568,7 +568,7 @@ if [ "$GIS_FLAG_S" -eq 1 ]; then
 	d.graph -m input="$GIS_OPT_GRAPH" color=none
     else
 	SYMBOL="$(echo $GIS_OPT_SYMBOL | tr '/' '_')"
-	GRAPH_FILE=""$GISDBASE"/"$LOCATION_NAME"/"$GIS_OPT_INPUT"__"$SYMBOL"_"$GIS_OPT_INTERVAL"_"$GIS_OPT_SIDE"_"$GIS_OPT_LINE_COLOR"".graph
+	GRAPH_FILE=""$GISDBASE"/"$LOCATION_NAME"/"$GIS_OPT_MAP"__"$SYMBOL"_"$GIS_OPT_INTERVAL"_"$GIS_OPT_SIDE"_"$GIS_OPT_LINE_COLOR"".graph
 #	cp -f "$TMP4.fmt" "$GRAPH_FILE"
 	cat "$TMP4.fmt" >> "$GRAPH_FILE"
 	d.graph -m input="$GRAPH_FILE" color=none
