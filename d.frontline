@@ -203,7 +203,7 @@ fi
 
 ## does map exist?
 eval "$(g.gisenv)"
-eval "$(g.findfile mapset="$MAPSET" element=vector file="$GIS_OPT_INPUT")"
+eval "$(g.findfile mapset="$MAPSET" element=vector file="$GIS_OPT_MAP")"
 if [ ! "$file" ]; then
     g.message -e "Vector map <"$GIS_OPT_MAP"> not found"
     exit 1
@@ -247,7 +247,7 @@ if [ -n "$GIS_OPT_WHERE" ] && [ -n "$GIS_OPT_LIST" ]; then
 fi
 
 
-s## is input vector displayed now ?
+## is input vector displayed now ?
 
 d.save -oc | grep -e "d.vect map=" | cut -d'"' -f2 | grep -e "$GIS_OPT_MAP" --quiet
 
