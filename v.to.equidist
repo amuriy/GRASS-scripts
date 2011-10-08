@@ -9,7 +9,7 @@
 # PURPOSE:      Generates vector points or line segments along a given vector 
 #               line(s) with the equal distances (uses v.segment)
 #
-# COPYRIGHT:    (C) 08-09/2011 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2011 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -160,7 +160,6 @@ fi
 # get lines' length
 v.to.db -p map="$GIS_OPT_INPUT" option=length units="$GIS_OPT_UNITS" --q  >> "$TMP1"
 
-
 if [ -n "$GIS_OPT_OFFSET" ]; then
     OFFSET="$GIS_OPT_OFFSET"    
 else
@@ -175,33 +174,54 @@ fi
 
 
 # loop over all lines and get equidistant points
-# if flag "-l" is active, do it all with line segments
+# if flag "-l" is active, do it all with the line segments
 if [ "$GIS_FLAG_L" -eq 1 ]; then
     cat "$TMP1" | while read LINE; do
 	LINE_CAT=$(echo $LINE | cut -d"|" -f1)
 	LINE_LENGTH=$(echo $LINE | cut -d"|" -f2)
 	
-	if [ "$GIS_FLAG_B" -eq 1 ]; then 
-	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
-PTS = 0; STEP = DIST; 
-do {
-NEXT_PTS = PTS + 1;
-NEXT_DIST = DIST + STEP;
-printf("L "); 
-printf("%d",NEXT_PTS); printf(" ");
-printf("%d",CAT); printf(" "); 
-printf("%f",NEXT_DIST); printf(" ");
-printf("%f",OFFSET_); printf(" ");
-printf("%f\n",DIST); 
-PTS = PTS + 1;
-DIST = DIST + STEP + STEP;
-} while ( DIST <= MAX_DIST )
-}' >> "$TMP1.dist.lines"
-	
-	else
+	# for LINES_CATS in "$LINE_CAT"; do 
+	#     echo $LINES_CATS
+	    
+# 	if [ "$GIS_FLAG_B" -eq 1 ]; then 
+# 	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+# printf("L "); 
+# printf("%d",1); printf(" ");
+# printf("%d",CAT); printf(" "); 
+# printf("%f",DIST); printf(" ");
+# printf("%f",OFFSET_); printf(" ");
+# printf("%f\n",0.0); 
+# }' > "$TMP1.dist.lines"
+
+# 	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+# PTS = 1; STEP = DIST; 
+# do {
+# NEXT_PTS = PTS + 1;
+# NEXT_DIST = DIST + STEP;
+# printf("L "); 
+# printf("%d",NEXT_PTS); printf(" ");
+# printf("%d",CAT); printf(" "); 
+# printf("%f",NEXT_DIST); printf(" ");
+# printf("%f",OFFSET_); printf(" ");
+# printf("%f\n",DIST); 
+# PTS = PTS + 1;
+# DIST = DIST + STEP + STEP;
+# } while ( DIST <= MAX_DIST )
+# }' >> "$TMP1.dist.lines"
+
+# 	else
 	    
 	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
-PTS = 0; STEP = DIST; 
+printf("L "); 
+printf("%d",1); printf(" ");
+printf("%d",CAT); printf(" "); 
+printf("%f",DIST); printf(" ");
+printf("%f",OFFSET_); printf(" ");
+printf("%f\n",0.0); 
+}' >> "$TMP1.dist.lines"
+	    
+	    echo | awk -v DIST="$GIS_OPT_DISTANCE" -v CAT="$LINE_CAT" -v MAX_DIST="$LINE_LENGTH" -v OFFSET_="$OFFSET" '{
+PTS = 1; STEP = DIST; 
 do {
 NEXT_PTS = PTS + 1;
 NEXT_DIST = DIST + STEP;
@@ -215,8 +235,11 @@ PTS = PTS + 1;
 DIST = DIST + STEP;
 } while ( DIST <= MAX_DIST )
 }' >> "$TMP1.dist.lines"
+	    
+#	fi	    
 
-	fi	    
+#	done
+
     done
 
     awk '{ print $1, $2, $3, $6, $4, $5 }' "$TMP1.dist.lines" > "$TMP1.dist.lines.all"
