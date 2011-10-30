@@ -1,0 +1,285 @@
+#!/bin/sh
+############################################################################
+#
+# MODULE:       d.arrowhead
+# AUTHOR(S):    Alexander Muriy
+#               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               e-mail: amuriy AT gmail DOT com 
+#
+# PURPOSE:      Displays "arrowheads" of vector lines on the graphic monitor 
+#               using d.graph (optionally save graph file and ps.map file)
+#
+# COPYRIGHT:    (C) 10/2011 Alexander Muriy / GRASS Development Team
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+############################################################################
+#%Module 
+#%  description: Displays "arrowheads" of vector lines on the graphic monitor using d.graph (optionally save graph file and ps.map file)
+#%  keywords: display, graphics, vector, symbology
+#%End
+#%Option
+#%  key: map
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  key_desc: name
+#%  description: Name of input vector map
+#%  gisprompt: old,vector,vector
+#%End
+#%Option
+#%  key: symbol
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  description: Type of symbol (default is arrow/arrowhead_1). May be any symbol from $GISBASE/etc/symbol/ or $MAPSET/symbol/ directories.
+#%End
+#%Option
+#%  key: size
+#%  type: integer
+#%  required: no
+#%  description: Symbol size 
+#%  answer: 20
+#%End
+#%Option
+#%  key: col
+#%  type: string
+#%  required: no
+#%  description: Color for line (standard color name or R:G:B)
+#%  answer: black
+#%  gisprompt: old_color,color,color
+#%End
+#%Option
+#%  key: fcol
+#%  type: string
+#%  required: no
+#%  description: Color for fill (standard color name or R:G:B) 
+#%  answer: grey
+#%  gisprompt: old_color,color,color
+#%End
+#%Option
+#%  key: width
+#%  type: integer
+#%  required: no
+#%  description: Width of symbol's line  
+#%  answer: 0
+#%End
+#%Option
+#%  key: graph
+#%  type: string
+#%  required: no
+#%  multiple: no
+#%  key_desc: name
+#%  description: Output file to save the d.graph commands 
+#%  gisprompt: new_file,file,output
+#%End
+#%Option
+#%  key: psmap
+#%  type: string
+#%  required: no
+#%  multiple: no
+#%  key_desc: name
+#%  description: Output file to save the ps.map commands 
+#%  gisprompt: new_file,file,output
+#%End
+#%Flag
+#%  key: s 
+#%  description: Save graphics commands in file(s) (for use with d.graph and/or ps.map)
+#%End
+
+
+if [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 1>&2
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+    exec g.parser "$0" "$@"
+fi
+
+
+## set environment so that awk works properly in all languages ##
+unset LC_ALL
+export LC_NUMERIC=C
+
+
+############################################################
+cleanup()
+{ 
+    g.mremove -f vect="DARROWS_*" --quiet
+    rm -f $TMP1*
+    
+}
+############################################################
+## what to do in case of user break:
+exitprocedure()
+{
+    echo "User break!"
+    cleanup
+    exit 1
+}
+
+## shell check for user break (signal list: trap -l)
+trap "exitprocedure" 2 3 15
+
+############################################################
+## check for awk
+
+if [ ! -x "$(which awk)" ] ; then
+    g.message -e "awk required, please install awk or gawk first"
+    exit 1
+fi
+
+
+## does map exist?
+eval "$(g.gisenv)"
+eval "$(g.findfile mapset="$MAPSET" element=vector file="$GIS_OPT_MAP")"
+if [ ! "$file" ]; then
+    g.message -e "Vector map <"$GIS_OPT_MAP"> not found"
+    exit 1
+fi
+
+
+## check for lines and boundaries in input map
+
+eval "$(v.info -t "$GIS_OPT_MAP")"
+
+if [ "$lines" -eq 0 ]; then
+    g.message -e "Input vector map not contain lines"
+    exit 1
+fi
+
+for vars in "$(v.info -t "$GIS_OPT_MAP" | cut -d"=" -f1)"; do
+    unset -v "$vars"
+done
+
+############################################################
+## setup temporary files ##
+
+# create temporary file
+TMP1="$(g.tempfile pid=$$)"
+if [ "$?" -ne 0 ] || [ -z "$TMP1" ] ; then
+    g.message -e "ERROR: Unable to create temporary files."
+    exit 1
+fi
+
+############################################################
+## DO IT
+
+v.split input=$GIS_OPT_MAP output=DARROWS_split vertices=2 --q > /dev/null
+
+v.category in=DARROWS_split out=DARROWS_split_newcats layer=2 opt=add step=1 --q
+
+v.category in=DARROWS_split_newcats layer=1 opt=print > $TMP1.lcats
+v.to.db -p DARROWS_split_newcats layer=2 opt=azimuth --q | tr '|' ' ' > $TMP1.cats.azim
+
+#v.to.db -p DARROWS_split_newcats layer=2 opt=start --q | awk -F"|" '{print $2,$3}' > $TMP1.start
+v.to.db -p DARROWS_split_newcats layer=2 opt=end --q | awk -F"|" '{print $2,$3}' > $TMP1.end
+
+#paste -d" " $TMP1.lcats $TMP1.cats.azim $TMP1.start $TMP1.end > $TMP1.table
+paste -d" " $TMP1.lcats $TMP1.cats.azim $TMP1.end > $TMP1.table
+#paste -d" " $TMP1.lcats $TMP1.cats.azim $TMP1.start > $TMP1.table
+
+
+#v.to.db -p $GIS_OPT_MAP opt=start --q | awk -F"|" '{print $2,$3}' > $TMP1.line.start
+v.to.db -p $GIS_OPT_MAP opt=end --q | awk -F"|" '{print $2,$3}' > $TMP1.line.end
+
+# cat $TMP1.line.start | while read line; do
+#     grep -- "${line}" $TMP.table >> $TMP1.start.segm
+# done    
+
+cat $TMP1.line.end | while read line; do
+    grep -- "${line}" "$TMP1.table" >> $TMP1.end.segm
+done    
+
+echo "VERSION 1.0
+BOX -0.5 -0.5 0.5 0.5
+POLYGON
+  RING
+  FCOLOR NONE
+    LINE
+      0 0
+      0.3 -1
+    END
+  END
+POLYGON
+  RING
+  FCOLOR NONE
+    LINE
+      0 0
+      -0.3 -1
+    END
+  END
+END" > $TMP1.arrowhead_1
+
+eval $(g.gisenv)
+
+symbol_path="$GISDBASE"/"$LOCATION_NAME"/"$MAPSET"/symbol/arrows
+if [ ! -d "$symbol_path" ]; then
+    mkdir -p "$symbol_path"
+    cp -f $TMP1.arrowhead_1 "$symbol_path"/arrowhead_1
+fi
+
+awk -v width=$GIS_OPT_WIDTH -v symbol=$GIS_OPT_SYMBOL -v size=$GIS_OPT_SIZE -v col=$GIS_OPT_COL -v fcol=$GIS_OPT_FCOL '{
+angle=360-$3; print "rotation", angle, "'"\n"'", 
+"width", width, "'"\n"'", 
+"symbol", symbol, size, $4, $5, col, fcol
+}' $TMP1.end.segm > $TMP1.arrows.graph
+
+cat $TMP1.arrows.graph | d.graph -m
+   
+
+if [ -n "$GIS_OPT_PSMAP" ]; then
+    awk -v width=$GIS_OPT_WIDTH -v symbol=$GIS_OPT_SYMBOL -v size=$GIS_OPT_SIZE -v col=$GIS_OPT_COL -v fcol=$GIS_OPT_FCOL '{
+angle=360-$3; print "point", $4, $5, "'"\n"'",
+"color", col, "'"\n"'",
+"fcolor", fcol, "'"\n"'",
+"symbol", symbol, "'"\n"'",
+"size", size, "'"\n"'",
+"rotate", angle, "'"\n"'",
+"end" }' $TMP1.end.segm  > $TMP1.arrows.psmap
+fi
+
+cat $TMP1.arrows.psmap > $GIS_OPT_PSMAP
+
+
+if [ "$GIS_FLAG_S" -eq 1 ]; then
+    if [ -n "$GIS_OPT_GRAPH" ]; then
+	cp -f $TMP1.arrows.graph "$GIS_OPT_GRAPH"
+	d.graph -m input="$GIS_OPT_GRAPH" color=none
+    else
+	SYMBOL="$(echo $GIS_OPT_SYMBOL | tr '/' '_')"
+	GRAPH_FILE=""$GISDBASE"/"$LOCATION_NAME"/"$GIS_OPT_MAP"_arrow.graph"
+	cat $TMP1.arrows.graph >> "$GRAPH_FILE"
+	d.graph -m input="$GRAPH_FILE" color=none
+    fi
+else 
+    d.graph -m input="$TMP1.arrows.graph" color=none
+fi
+
+
+if [ "$GIS_FLAG_S" -eq 0 ] && [ -n "$GIS_OPT_PSMAP" ]; then
+    g.message -e "Please use flag <"-s"> to save line graphics in file <"$GIS_OPT_PSMAP"> for use with ps.map" 
+    cleanup
+    exit 1
+fi
+
+if [ -n "$GIS_OPT_PSMAP" ]; then
+#    cp -f "$TMP6.fmt" "$GIS_OPT_PSMAP"
+    cat "$TMP1.arrows.psmap" >> "$GIS_OPT_PSMAP" 
+fi
+
+
+
+cleanup
+
+exit 0
+
