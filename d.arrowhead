@@ -234,8 +234,6 @@ angle=360-$3; print "rotation", angle, "'"\n"'",
 "symbol", symbol, size, $4, $5, col, fcol
 }' $TMP1.end.segm > $TMP1.arrows.graph
 
-cat $TMP1.arrows.graph | d.graph -m
-   
 
 if [ -n "$GIS_OPT_PSMAP" ]; then
     awk -v width=$GIS_OPT_WIDTH -v symbol=$GIS_OPT_SYMBOL -v size=$GIS_OPT_SIZE -v col=$GIS_OPT_COL -v fcol=$GIS_OPT_FCOL '{
@@ -247,8 +245,6 @@ angle=360-$3; print "point", $4, $5, "'"\n"'",
 "rotate", angle, "'"\n"'",
 "end" }' $TMP1.end.segm  > $TMP1.arrows.psmap
 fi
-
-cat $TMP1.arrows.psmap > $GIS_OPT_PSMAP
 
 
 if [ "$GIS_FLAG_S" -eq 1 ]; then
@@ -273,7 +269,6 @@ if [ "$GIS_FLAG_S" -eq 0 ] && [ -n "$GIS_OPT_PSMAP" ]; then
 fi
 
 if [ -n "$GIS_OPT_PSMAP" ]; then
-#    cp -f "$TMP6.fmt" "$GIS_OPT_PSMAP"
     cat "$TMP1.arrows.psmap" >> "$GIS_OPT_PSMAP" 
 fi
 
