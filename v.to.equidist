@@ -23,7 +23,7 @@
 #
 ############################################################################
 #%Module 
-#%  description: 
+#%  description: Generates vector points or line segments along a given vector line(s) with the equal distances (uses v.segment) 
 #%  keywords: vector
 #%End
 #%Option

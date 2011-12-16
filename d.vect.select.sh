@@ -1,5 +1,7 @@
 #!/bin/sh
 
+VECT=$1
+
 d.where --q > .coords.list 
 
 cat .coords.list | while read line; do 
@@ -34,16 +36,16 @@ d.graph -m input=.graph.clean
 rm -f .coords*
 
 
-list=$(v.edit Mzymta_reki_merged_clean tool=select polygon=$(echo $polygon_coords) --q)
+list=$(v.edit $VECT tool=select polygon=$(echo $polygon_coords) --q)
 
 
-#list=$(v.edit Mzymta_reki_merged_clean tool=select bbox=$(echo $polygon_coords) --q)
+#list=$(v.edit $VECT tool=select bbox=$(echo $polygon_coords) --q)
 echo " -------------------- "
 echo $list
 echo ""
 
 d.save move=1,2 > /dev/null 2>&1
 
-#v.extract in=paleorusla_Qe_voronoi type=line list=$list new=$1 out=paleorusla_Qe_voronoi_$1 --o
+#v.extract in=VECT_to_select type=line list=$list new=$1 out=paleorusla_Qe_voronoi_$1 --o
 
-#v.edit paleorusla_Qe_voronoi_$1 tool=merge cats=1-999999
+#v.edit VECT_to_select tool=merge cats=1-999999
