@@ -10,7 +10,7 @@
 #               on the graphic monitor, save to vector line and update attribute table
 #               with LDM parameters.
 #
-# COPYRIGHT:    (C) 10/2011 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2011 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
