@@ -40,7 +40,8 @@
 #%  type: string
 #%  required: yes
 #%  multiple: no
-#%  description: Type of symbol (default is arrow/arrowhead_1). May be any symbol from $GISBASE/etc/symbol/ or $MAPSET/symbol/ directories.
+#%  description: Type of symbol (default is arrows/arrowhead_1). May be any symbol from $GISBASE/etc/symbol/ or $MAPSET/symbol/ directories.
+#%  answer: arrows/arrowhead_1
 #%End
 #%Option
 #%  key: size
@@ -115,8 +116,7 @@ export LC_NUMERIC=C
 cleanup()
 { 
     g.mremove -f vect="DARROWS_*" --quiet
-    rm -f $TMP1*
-    
+    rm -f ${TMP1}*
 }
 ############################################################
 ## what to do in case of user break:
@@ -162,9 +162,8 @@ for vars in "$(v.info -t "$GIS_OPT_MAP" | cut -d"=" -f1)"; do
 done
 
 ############################################################
-## setup temporary files ##
+## setup temporary files
 
-# create temporary file
 TMP1="$(g.tempfile pid=$$)"
 if [ "$?" -ne 0 ] || [ -z "$TMP1" ] ; then
     g.message -e "ERROR: Unable to create temporary files."
@@ -222,10 +221,10 @@ END" > $TMP1.arrowhead_1
 
 eval $(g.gisenv)
 
-symbol_path="$GISDBASE"/"$LOCATION_NAME"/"$MAPSET"/symbol/arrows
+symbol_path="$GISDBASE/$LOCATION_NAME/$MAPSET/symbol/arrows"
 if [ ! -d "$symbol_path" ]; then
     mkdir -p "$symbol_path"
-    cp -f $TMP1.arrowhead_1 "$symbol_path"/arrowhead_1
+    cp -f $TMP1.arrowhead_1 "$symbol_path"/arrowhead_1 
 fi
 
 awk -v width=$GIS_OPT_WIDTH -v symbol=$GIS_OPT_SYMBOL -v size=$GIS_OPT_SIZE -v col=$GIS_OPT_COL -v fcol=$GIS_OPT_FCOL '{
