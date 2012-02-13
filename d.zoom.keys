@@ -34,11 +34,11 @@
 #%End
 #%Option
 #%  key: magn
-#%  type: string
+#%  type: double
 #%  required: no
 #%  multiple: no
-#%  key_desc: name
-#%  description: Magnification: default is 1 (1/10 of current region); may be positive or negative. 
+#%  key_desc: number
+#%  description: Magnification: default is "1" (1/10 of current region). "magn" > 1 gives positive magnification, "magn" < 1 gives negative one. 
 #%End
 #%Flag
 #% key: t
@@ -59,16 +59,9 @@ if [ -z "$GISBASE" ] ; then
     exit 1
 fi
 
-
-# echo "program "$0""
-# echo "args "$@""
-# echo "PID "$$""
-
-
 if [ "$1" != "@ARGS_PARSED@" ] ; then
     exec g.parser "$0" "$@"
 fi
-
 
 ## set environment so that awk works properly in all languages ##
 unset LC_ALL
@@ -136,10 +129,21 @@ if [ "$(d.mon -p | cut -f1 -d' ')" != "Currently" ] ; then
     exit 1
 fi
 
+if [ "$GIS_FLAG_X" -eq 0 ] && [ "$GIS_FLAG_T" -eq 0 ]; then
+    g.message -e "Please select method of navigation: flag \"-t\" from terminal or flag \"-x\" from X-monitor"
+    exit 1
+fi 
+
 if [ "$GIS_FLAG_X" -eq 1 ] && [ "$GIS_FLAG_T" -eq 1 ]; then
     g.message -e "Please select one method of navigation: flag \"-t\" from terminal or flag \"-x\" from X-monitor"
     exit 1
 fi 
+
+MAGN_NEGAT=$(echo "$GIS_OPT_MAGN" | grep "-")
+if [ "$MAGN_NEGAT" ]; then
+    g.message -e "Magnification should be a positive number: default is "1" (1/10 of current region). "magn" > 1 gives positive magnification, "magn" < 1 gives negative one."
+    exit 1
+fi  
 
 
 ## region stuff 
@@ -167,9 +171,6 @@ fi
 
 east_step=$(echo $ew_extent_round "$MAGN" | awk '{e=($1/10)*$2; print e}')
 north_step=$(echo $ns_extent_round "$MAGN" | awk '{n=($1/10)*$2; print n}')
-
-
-
 
 
 ## monitors stuff 
