@@ -1,0 +1,26 @@
+#!/bin/sh
+
+vect=$1
+ext=$2
+
+g.copy vect=$vect,${vect}_CENTR_EDIT
+
+CENTR_COUNT=$(v.category -g in=${vect}_CENTR_EDIT opt=report | grep "centroid" | cut -d' ' -f3)
+CENTR_MAX=$(v.category -g in=${vect}_CENTR_EDIT opt=report | grep "centroid" | cut -d' ' -f5)
+
+if [ "$CENTR_COUNT" -gt 0 ]; then
+    v.edit ${vect}_CENTR_EDIT tool=delete type=centroid cats=0-$((${CENTR_MAX}+1)) --q 
+fi
+
+
+v.category in=${vect}_CENTR_EDIT out=${vect}_CENTR_EDIT_ACATS option=add cat=1 step=0 type=area --o --q
+
+ACATS=$(v.category -g in=${vect}_CENTR_EDIT_ACATS opt=report | grep "centroid" | cut -d' ' -f5)
+
+v.extract in=${vect}_CENTR_EDIT_ACATS out=${vect}_CENTR_EDIT_ACATS_EXTRACT type=area new=1 list=$ACATS --o --q
+
+v.dissolve in=${vect}_CENTR_EDIT_ACATS_EXTRACT out=$ext --o --q
+
+
+## cleanup
+g.mremove -f vect="${vect}_CENTR_EDIT*"

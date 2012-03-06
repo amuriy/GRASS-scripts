@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 1>&2
+    exit 1
+fi
+
+  
+CMD=$(v.digit "$@" bgcmd="$(d.save -o | cut -f1 -d'#' | tr '\n' ';')")
+
+$CMD

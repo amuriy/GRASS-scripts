@@ -27,13 +27,13 @@ else
 fi
 
 
-echo "color 255:255:150
-polygon" > .coords.graph
-cat .coords_koma.list >> .coords.graph
-cat .coords.graph | tr ',' ' ' > .graph.clean
-d.graph -m input=.graph.clean
+# echo "color 255:255:150
+# polygon" > .coords.graph
+# cat .coords_koma.list >> .coords.graph
+# cat .coords.graph | tr ',' ' ' > .graph.clean
+# d.graph -m input=.graph.clean
 
-d.save move=1,2 > /dev/null 2>&1
+# d.save move=1,2 > /dev/null 2>&1
 
 
 
@@ -46,7 +46,7 @@ echo $list
 
 #d.vect -i $1 cats=$list width=3 col=red
 
-
+#v.edit $VECT tool=delete ids=$list --q
 
 
 
