@@ -6,7 +6,7 @@
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
 #
-# PURPOSE:      Compute "Linear Directional Mean" of vector lines, displays arrow 
+# PURPOSE:      Compute "Linear Directional Mean" of vector lines, display arrow 
 #               on the graphic monitor, save to vector line and update attribute table
 #               with LDM parameters.
 #
