@@ -11,7 +11,7 @@
 #               (http://www.cs.cmu.edu/~quake/triangle.html) 
 #               of J.R. Shewchuk.
 #
-#               Make exact Delaunay triangulations, constrained Delaunay triangulations, 
+#               Makes exact Delaunay triangulations, constrained Delaunay triangulations, 
 #               conforming Delaunay triangulations and high-quality triangular meshes. 
 #               On GIS terminology, it produces 2D TIN, optionally with "breaklines".
 #
