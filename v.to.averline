@@ -1,0 +1,266 @@
+#!/bin/sh
+############################################################################
+#
+# MODULE:       v.to.averline
+# AUTHOR(S):    Alexander Muriy
+#               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               e-mail: amuriy AT gmail DOT com 
+#
+# PURPOSE:      Find "average" line(s) of input vector map. 
+#               Results differ depending on vector type: lines/boundaries or polygons. 
+#               NOTE: Lines/boundaries must have the same direction.
+#               
+# COPYRIGHT:    (C) 2012 Alexander Muriy / GRASS Development Team
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+############################################################################
+#%Module 
+#%  description: Find "average" line(s) of input vector map. Results differ depending on vector type: lines/boundaries or polygons. NOTE: Lines/boundaries must have the same direction.
+#%  keywords: vector
+#%End
+#%Option
+#%  key: input
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  key_desc: name
+#%  description: Name of input vector map
+#%  gisprompt: old,vector,vector
+#%End
+#%Option
+#%  key: output
+#%  type: string
+#%  required: yes
+#%  multiple: no
+#%  key_desc: name
+#%  description: Name of output vector map
+#%  gisprompt: new,vector,vector
+#%End
+#%Option
+#%  key: ave_dist
+#%  type: double
+#%  required: no
+#%  description: Average distance to vectors sampling. Affects the shape of output "average" line.       
+#%End
+#%Option
+#%  key: ave_segm
+#%  type: double
+#%  required: no
+#%  description: Average number of vectors segments. Affects the shape of output "average" line.
+#%End
+
+############################################################
+if [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 1>&2
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+    exec g.parser "$0" "$@"
+fi
+
+
+## set environment so that awk works properly in all languages ##
+unset LC_ALL
+export LC_NUMERIC=C
+
+
+############################################################
+cleanup()
+{ 
+    g.mremove -f vect="V_AVERLINE*" rast="V_AVERLINE*" --q
+    \rm -f ${TMP1}.*
+    
+}
+############################################################
+## what to do in case of user break:
+exitprocedure()
+{
+    echo "User break!"
+    cleanup
+    exit 1
+}
+
+## shell check for user break (signal list: trap -l)
+trap "exitprocedure" 2 3 15
+
+############################################################
+## check for awk
+if [ ! -x "$(which awk)" ] ; then
+    g.message -e "<awk> required, please install <awk> or <gawk> first"
+    exit 1
+fi
+
+## check for vector types in input map
+eval $(v.info -t "$GIS_OPT_INPUT")
+
+if [ "$lines" -ne '0' ] && [ "$areas" -ne 0 ]; then
+    g.message -e "Input vector map contains mixed vector geometry. Please extract needed lines or areas in separate map and restart module."
+    exit 1
+elif [ "$lines" -ne '0' ] && [ "$boundaries" -ne '0' ]; then
+    g.message -e "Input vector map contains mixed vector geometry. Please extract needed lines or areas in separate map and restart module."
+    exit 1
+fi
+
+if [ "$lines" -eq '0' ] && [ "$areas" -eq '0' ]; then
+    g.message -e "Input vector map not contain lines or areas."
+    exit 1
+fi
+
+if [ "$lines" -eq '0' ] && [ "$areas" -ne '0' ]; then
+    if [ "$centroids" -eq '0' ]; then
+	g.message -e "Input area(s) don't have centroid(s)"
+	exit 1
+    fi
+fi
+
+if [ -n "$GIS_OPT_AVE_DIST" ] && [ -n "$GIS_OPT_AVE_SEGM" ]; then
+    g.message -e "Choose only ONE of methods of controlling the "average" line's shape: <"ave_dist"> option or <"ave_segm"> option"
+    exit 1
+fi
+
+if [ "$lines" -ne '0' ]; then
+    if [ -z "$GIS_OPT_AVE_DIST" ] && [ -z "$GIS_OPT_AVE_SEGM" ]; then
+	g.message -e "Input vector map contain lines. Choose one of methods of controlling the "average" line's shape: <"ave_dist"> option or <"ave_segm"> option"
+	exit 1
+    fi
+fi
+
+
+############################################################
+## setup temporary files ##
+
+# create temporary file
+TMP1="$(g.tempfile pid=$$)"
+if [ "$?" -ne 0 ] || [ -z "$TMP1" ] ; then
+    g.message -e "ERROR: Unable to create temporary files."
+    exit 1
+fi
+
+############################################################
+## DO IT
+
+## if polygons input
+if [ "$lines" -eq '0' ] && [ "$boundaries" -ne '0' ] && [ "$areas" -ne '0' ]; then
+    g.region vect="$GIS_OPT_INPUT" --q
+    v.to.rast in="$GIS_OPT_INPUT" out=V_AVERLINE_RAST use=cat --o --q
+    r.thin in=V_AVERLINE_RAST out=V_AVERLINE_RAST.thin --o --q
+    r.to.vect in=V_AVERLINE_RAST.thin out="$GIS_OPT_OUTPUT" --o --q
+fi
+
+
+## if lines input
+if [ "$lines" -ne '0' ]; then
+    if  [ -n "$GIS_OPT_AVE_SEGM" ]; then
+	v.to.db -p "$GIS_OPT_INPUT" opt=length --q | sort -n | uniq | while read LINES; do 
+	    CAT=$(echo "$LINES" | cut -d"|" -f1)
+	    LENGTH=$(echo "$LINES" | cut -d"|" -f2)
+	    v.extract in="$GIS_OPT_INPUT" out=V_AVERLINE_cat${CAT} list=$CAT --o --q
+	    DIST=$(echo "$LENGTH" | awk -v segm="$GIS_OPT_AVE_SEGM" '{printf "%d\n",$1/segm + 0.5}')
+	    v.to.points -i in=V_AVERLINE_cat${CAT} out=V_AVERLINE_cat${CAT}_vert dmax="$DIST" --o --q
+	done
+	
+	for VERT in $(g.mlist vect pat="V_AVERLINE_cat*vert"); do
+	    v.out.ascii format=point in=$VERT | cut -d'|' -f1,2 >> $TMP1.coor 
+	    v.db.select -c $VERT layer=2 >> $TMP1.vert
+	done
+	
+	paste -d'|' $TMP1.vert $TMP1.coor > $TMP1.table
+    fi
+    
+    if [ -n "$GIS_OPT_AVE_DIST" ]; then 
+	v.to.points -vi in="$GIS_OPT_INPUT" out=V_AVERLINE_vert dmax="$GIS_OPT_AVE_DIST" --o --q 
+	v.out.ascii format=point in=V_AVERLINE_vert | cut -d'|' -f1,2 > $TMP1.coor 
+	v.db.select -c V_AVERLINE_vert layer=2 > $TMP1.vert
+	
+	paste -d'|' $TMP1.vert $TMP1.coor > $TMP1.table
+    fi
+    
+###  
+
+    cat $TMP1.table | cut -d'|' -f2 | sort -n | uniq | while read NUM; do 
+	awk -v num=$NUM -F'|' '{if ($2 == num) print}' $TMP1.table > $TMP1.vert.${NUM}
+    done
+
+    MIN=$(for FILES in $TMP1.vert.* ; do 
+	awk -F'|' 'END {print NR}' $FILES; 
+	done | awk 'min=="" || $1 < min {min=$1} END{ print min}')
+    
+    seq 1 $MIN | while read PTS_NUM ; do 
+	for FILES in $TMP1.vert.* ; do
+	    awk -v num=$PTS_NUM '{if (NR == num) print}' $FILES 
+	done > $TMP1.pts.${PTS_NUM}
+    done 
+    
+    LINES_NUMB=$(v.info -t "$GIS_OPT_INPUT" | grep "lines" | cut -d'=' -f2)
+    BOUND_VERT=$(($LINES_NUMB+1))
+    
+    for PTS in $(ls $TMP1.pts.*); do
+	NAME=V_AVERLINE_$(basename $PTS | tr '.' '_')
+	cat $PTS | cut -d'|' -f4,5 | tr '|' ' ' > ${PTS}.clean
+	FI=$(head -n1 ${PTS}.clean)
+	
+	if [ $LINES_NUMB -eq 2 ]; then
+	    v.in.ascii --q -n format=standard fs='|' in=- out="$NAME" <<EOF
+$(echo "L $LINES_NUMB" ; cat ${PTS}.clean)
+EOF
+	else
+	    v.in.ascii --q -n format=standard fs='|' in=- out="$NAME" <<EOF
+$(echo "B $BOUND_VERT" ; cat ${PTS}.clean; echo $FI)
+EOF
+	fi
+    done
+    
+    ## if lines = 2, make connecting lines from consecutive lines' points and extract there's center point
+    if [ $LINES_NUMB -eq 2 ]; then
+	LNAME=V_AVERLINE_$(basename $TMP1 | tr '.' '_')
+	g.mlist vect pat="$LNAME*" | while read BOUNDS; do
+	    v.to.db -p $BOUNDS opt=length --q | while read LINE; do
+		LENGTH=$(echo $LINE | cut -d'|' -f2)
+		DMAX=$(echo $LENGTH | awk '{x=$1*0.7; print x}')
+		v.to.points -t -i in=$BOUNDS out=${BOUNDS}_CENTR dmax=$DMAX --o --q
+		v.select -t -c -r ain=${BOUNDS}_CENTR bin=$BOUNDS out=${BOUNDS}_select operator=touches  --o --q
+	    done
+	done
+	
+	for CENTR in $(g.mlist vect pat="$LNAME*_select" | sort -t'_' -k6 -n); do
+    	    v.out.ascii format=point in=$CENTR | cut -d'|' -f1,2 >> $TMP1.to.line
+	done
+	
+	v.in.lines fs='|' in=$TMP1.to.line out="$GIS_OPT_OUTPUT" --o --q
+    fi
+    
+    ## if lines > 2, make polygons from consecutive lines' points and extract there's centroids
+    if [ $LINES_NUMB -gt 2 ]; then
+	BNAME=V_AVERLINE_$(basename $TMP1 | tr '.' '_')
+	g.mlist vect pat="$BNAME*" | while read BOUNDS; do
+	    v.centroids in=$BOUNDS out=${BOUNDS}_area --o --q
+	done
+	
+	g.mlist vect pat="$LNAME*_area" | while read AREAS; do
+	    v.extract in=$AREAS out=${AREAS}_CENTR type=centroid --o --q
+	done
+	
+	for CENTR in $(g.mlist vect pat="$LNAME*_CENTR" | sort -t'_' -k6 -n); do
+	    v.out.ascii format=point in=$CENTR | cut -d'|' -f1,2 >> $TMP1.to.line
+	done
+	
+	v.in.lines fs='|' in=$TMP1.to.line out="$GIS_OPT_OUTPUT" --o --q
+    fi
+fi
+    
+
+## cleanup
+cleanup
+
+
+exit 0
