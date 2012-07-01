@@ -13,7 +13,7 @@
 #
 #               Makes exact Delaunay triangulations, constrained Delaunay triangulations, 
 #               conforming Delaunay triangulations and high-quality triangular meshes. 
-#               On GIS terminology, it produces 2D TIN, optionally with "breaklines".
+#               In GIS terminology, it produces 2D TIN, optionally with "breaklines".
 #
 # COPYRIGHT:    (C) 2012 Alexander Muriy / GRASS Development Team
 #
@@ -29,7 +29,7 @@
 #
 ############################################################################
 #%Module 
-#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make exact Delaunay triangulations, constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. On GIS terminology, it produces 2D TIN, optionally with "breaklines".
+#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make exact Delaunay triangulations, constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. In GIS terminology, it produces 2D TIN, optionally with "breaklines".
 #%  keywords: vector, geometry, triangulation
 #%End
 #%Option
@@ -166,13 +166,19 @@ trap "exitprocedure" 2 3 15
 ############################################################
 ## check for Triangle
 if [ ! -x "$(which triangle)" ] ; then
-    g.message -e "<Triangle> (http://www.cs.cmu.edu/~quake/triangle.html) required, please install it first"
+    g.message -e "<Triangle> (http://www.cs.cmu.edu/~quake/triangle.html) required, please install it first."
     exit 1
 fi
 
 ## check for awk
 if [ ! -x "$(which awk)" ] ; then
-    g.message -e "<awk> required, please install <awk> or <gawk> first"
+    g.message -e "<awk> required, please install <awk> or <gawk> first."
+    exit 1
+fi
+
+## check for sed
+if [ ! -x "$(which sed)" ] ; then
+    g.message -e "<sed> required, please install it first."
     exit 1
 fi
 
@@ -209,7 +215,6 @@ if [ -n "$GIS_OPT_MIN_ANGLE" ] && [ "$GIS_FLAG_Q" -eq 0 ]; then
 fi
 
 if [ -n "$GIS_OPT_LINES" ]; then
-    
     if [ "$GIS_FLAG_C" -eq 1 ] && [ $GIS_FLAG_Q -eq 1 -o $GIS_FLAG_A -eq 1 ]; then
     	g.message -e "Flag <"-c"> is not compatible with flags <"-q"> or <"-a">"   
     	cleanup
@@ -362,9 +367,9 @@ $TRIANGLE_CMD $TMP1.pts_lines_cut
 ############################################################
 ## back from Triangle to GRASS
 
-tail -n+2 $TMP1.pts_lines_cut.1.node | head -n-1  > $TMP1.pts_lines_cut.1.node.clean
-tail -n+2 $TMP1.pts_lines_cut.1.ele | head -n-1 | \
-    awk '{print $1,$2,$3,$4,$2}'  > $TMP1.pts_lines_cut.1.ele.clean
+sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.node > $TMP1.pts_lines_cut.1.node.clean
+
+sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.ele | awk '{print $1,$2,$3,$4,$2}' > $TMP1.pts_lines_cut.1.ele.clean
 
 awk 'BEGIN{OFS="\n"} {print $2,$3,$4,$5}' \
     $TMP1.pts_lines_cut.1.ele.clean > $TMP1.pts_lines_cut.1.ele.clean.COL
@@ -379,10 +384,10 @@ echo "B 4" > $TMP1.TIN_to_GRASS
 awk 'NR % 4 == 0 {print; print "B 4"; next} {print}' $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ >> $TMP1.TIN_to_GRASS
 
 B="B 4"
-EOF="$(tail -n1 $TMP1.TIN_to_GRASS)"
+EOF="$(sed -n '$p' $TMP1.TIN_to_GRASS)"
 
 if [ "$EOF" = "$B" ]; then
-    head -n-1 $TMP1.TIN_to_GRASS > $TMP1.TIN_to_GRASS.clean
+    sed '$d' $TMP1.TIN_to_GRASS > $TMP1.TIN_to_GRASS.clean
 fi
 
 ## import "raw" TIN in GRASS
@@ -413,9 +418,7 @@ if [ -n "$GIS_OPT_SAVE" ]; then
     fi
 fi
 
-
 ############################################################
-## cleanup
 
 cleanup
 
