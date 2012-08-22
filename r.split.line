@@ -1,0 +1,127 @@
+#!/bin/sh
+############################################################################
+#
+# MODULE:       r.split.line
+# AUTHOR(S):    Alexander Muriy
+#               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               e-mail: amuriy AT gmail DOT com 
+#
+# PURPOSE:      Split raster into parts with vector line(s) 
+#               
+#
+# COPYRIGHT:    (C) 2012 Alexander Muriy / GRASS Development Team
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+############################################################################
+#%Module 
+#%  description: Split raster into parts with vector line(s). Lines MUST intersect the whole raster map.
+#%  keywords: raster,vector
+#%End
+#%Option
+#%  key: raster
+#%  type: string
+#%  required: yes
+#%  key_desc: name
+#%  description: Name of input raster map
+#%  gisprompt: old,cell,raster
+#%End
+#%Option
+#%  key: line
+#%  type: string
+#%  required: yes
+#%  key_desc: name
+#%  description: Name of vector map with line(s)
+#%  gisprompt: old,vector,vector
+#%End
+############################################################################
+
+if [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 1>&2
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+    exec g.parser "$0" "$@"
+fi
+
+
+## set environment so that awk works properly in all languages ##
+unset LC_ALL
+export LC_NUMERIC=C
+
+
+############################################################
+cleanup()
+{ 
+    r.mask -r > /dev/null 2>&1
+    g.mremove -f vect="R_SPLIT*" rast="R_SPLIT*" --q
+    g.region region=OLD_REGION --q
+    g.remove region=OLD_REGION --q
+}
+############################################################
+## what to do in case of user break:
+exitprocedure()
+{
+    echo "User break!"
+    cleanup
+    exit 1
+}
+
+## shell check for user break (signal list: trap -l)
+trap "exitprocedure" 2 3 15
+
+############################################################
+## DO IT
+
+RAST=$GIS_OPT_RASTER
+LINE=$GIS_OPT_LINE
+TMP=R_SPLIT
+
+g.region save=OLD_REGION --q
+g.region rast=$RAST --q
+
+v.in.region out=${TMP}_region --q
+v.type in=${TMP}_region out=${TMP}_region_line type=boundary,line --q
+v.edit ${TMP}_region_line tool=delete type=centroid cats=0-9999 --q
+
+v.patch in=${TMP}_region_line,$LINE out=${TMP}_patch --q 
+
+v.clean in=${TMP}_patch out=${TMP}_patch_clean tool=break --q 
+
+v.category in=${TMP}_patch_clean out=${TMP}_patch_clean_nocats opt=del --q
+v.category in=${TMP}_patch_clean_nocats out=${TMP}_patch_clean_newcats --q
+
+v.overlay ain=${TMP}_patch_clean_newcats atype=line bin=${TMP}_region \
+    btype=area out=${TMP}_patch_select oper=not --q > /dev/null 2>&1
+
+v.select -r ain=${TMP}_patch_clean_newcats bin=${TMP}_patch_select \
+    out=${TMP}_final operator=within --q > /dev/null 2>&1
+
+v.type in=${TMP}_final out=${TMP}_bounds type=line,boundary --q
+v.centroids in=${TMP}_bounds out=${TMP}_areas --q
+
+v.category in=${TMP}_areas out=${TMP}_areas_nocats opt=del type=centroid --q
+v.category in=${TMP}_areas_nocats out=${TMP}_areas_newcats type=centroid --q
+
+v.category in=${TMP}_areas_newcats opt=print type=centroid | while read NUM; do
+    v.extract in=${TMP}_areas_newcats out=${TMP}_areas_${NUM} list=$NUM  --q 
+    g.region vect=${TMP}_areas_${NUM} --q
+    v.to.rast in=${TMP}_areas_${NUM} out=${TMP}_areas_${NUM} type=area use=cat --q
+    r.mask in=${TMP}_areas_${NUM} --q
+    r.mapcalc ""${RAST}.part${NUM}" = "$RAST""
+    r.mask -r > /dev/null 2>&1
+done    
+
+## cleanup
+cleanup
+
+exit 0
