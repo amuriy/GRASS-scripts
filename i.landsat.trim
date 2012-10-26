@@ -309,27 +309,6 @@ gener_footprint()
     for patch in $(g.mlist rast pat="${TMP}_grow*" sep=','); do
     	r.patch in="$patch" out="${TMP}_patch" --o --q 
     done
-
-
-    # for trim in $(g.mlist vect pat="${GIS_OPT_INPUT_BASE}*_${TMP}_gener"); do 
-    # 	START=$COUNT
-    # 	v.type in="$trim" out="${TMP}_line${COUNT}" type=boundary,line --o --q 
-    # 	COUNT=$(($START+1))
-    # done
-    # for line in $(g.mlist vect pat="${TMP}_line*"); do 
-    # 	START=$COUNT
-    # 	v.edit "$line" tool=delete type=centroid cats=0-999 --q 
-    # 	v.to.rast in="$line" out="${TMP}_rast${COUNT}" use=cat --o --q
-    # 	COUNT=$(($START+1))
-    # done
-    # for rast in $(g.mlist rast pat="${TMP}_rast*"); do
-    # 	START=$COUNT
-    # 	r.grow in="$rast" out="${TMP}_grow${COUNT}" radius=3 --o --q
-    # 	COUNT=$(($START+1))
-    # done
-    # for patch in $(g.mlist rast pat="${TMP}_grow*" sep=','); do
-    # 	r.patch in="$patch" out="${TMP}_patch" --o --q 
-    # done
     
     r.mapcalc "${TMP}_patch_null = if(isnull(${TMP}_patch),1,null())" 
     r.to.vect in="${TMP}_patch_null" out="${TMP}_patch_null" feature=area --o --q
