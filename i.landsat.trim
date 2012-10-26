@@ -84,12 +84,16 @@
 #% description: Trim raster(s) with the MASK where coverage exists for all bands   
 #%End
 #%Flag
+#% key: g
+#% description: Trim raster(s) with the generalized footprint from all bands   
+#%End
+#%Flag
 #% key: a
 #% description: Process all bands 
 #%End
 #%Flag
 #% key: f
-#% description: Save vector footprint(s) of trimmed raster bands or coverage MASK
+#% description: Save vector footprint(s) of trimmed raster bands or coverage MASK 
 #%End
 
 if [ -z "$GISBASE" ] ; then
@@ -106,13 +110,14 @@ cleanup()
 { 
     g.region region=${TMP}_OLD_REGION --q
     g.remove region=${TMP}_OLD_REGION --q
-    g.mremove -f rast=MASK,"I_LANDSAT_TRIM*" --q
-    g.mremove -f vect="I_LANDSAT_TRIM*" --q
+    g.mremove -f rast=MASK,"*I_LANDSAT_TRIM*" --q
+    g.mremove -f vect="*I_LANDSAT_TRIM*" --q
 }
 ############################################################
 ## what to do in case of user break:
 exitprocedure()
 {
+    echo ""
     echo "User break!"
     cleanup
     exit 1
@@ -126,17 +131,6 @@ trap "exitprocedure" 2 3 15
 
 TMP=I_LANDSAT_TRIM
 
-if_exist()
-{
-    eval "$(g.gisenv)"
-    eval "$(g.findfile mapset="$MAPSET" element=cell file="$MAP")"
-    if [ ! "$file" ]; then
-	g.message -e "Raster map <"$MAP"> not found"
-	cleanup
-	exit 1
-    fi
-}
-
 band_mask() 
 {
     rast_thresh=$(($GIS_OPT_RAST_BUFFER/3))
@@ -144,21 +138,29 @@ band_mask()
     if [ $GIS_FLAG_M -eq 1 ]; then
 	g.region rast=${TMP}.cover res=$rast_thresh
 	g.message message="Creating raster mask ..."
-	r.mapcalc "${TMP}.mask = if(${TMP}.cover > 0, 1, null())"
+    	r.mapcalc "${TMP}.mask = if(${TMP}.cover > 0, 1, null())"
     else
 	g.region rast=$MAP res=$rast_thresh
-	g.message message="Creating raster mask ..."
+	if [ $GIS_FLAG_G -eq 0 ]; then	
+	    g.message message="Creating raster mask ..."
+	fi
 	r.mapcalc "${TMP}.mask = if($MAP > 0, 1, null())"
     fi
-    
-    g.message message="Creating raster buffer with distance <"$GIS_OPT_RAST_BUFFER"> ..."
+
+    if [ $GIS_FLAG_G -eq 0 ]; then
+	g.message message="Creating raster buffer with distance <"$GIS_OPT_RAST_BUFFER"> ..."
+    fi
     r.buffer in=${TMP}.mask out=${TMP}.buffer distances="$GIS_OPT_RAST_BUFFER" --o --q
     r.mapcalc "${TMP}.buffer_2 = if(${TMP}.buffer == 2, 1, null())"
     g.region res="$GIS_OPT_RAST_BUFFER"
-    g.message message="Growing raster and cut mask ..."
+    if [ $GIS_FLAG_G -eq 0 ]; then
+	g.message message="Growing raster and cut mask ..."
+    fi
     r.grow in=${TMP}.buffer_2 out=${TMP}.grow radius=1 --o --q
     r.mapcalc "${TMP}.mask.cut = if(isnull(${TMP}.grow), ${TMP}.mask, null())" 
-    g.message message="Vectorize raster mask ..."
+    if [ $GIS_FLAG_G -eq 0 ]; then
+	g.message message="Vectorize raster mask ..."
+    fi
     r.to.vect in=${TMP}.mask.cut out=${TMP}_mask feature=area --o --q > /dev/null 2>&1
     g.rename vect=${TMP}_mask,${TMP}_mask_nocentr --o --q > /dev/null 2>&1
     v.edit ${TMP}_mask_nocentr tool=delete type=centroid cats=0-999999 --o --q
@@ -169,7 +171,9 @@ band_mask_gener()
 {
     main_poly=$(v.to.db -p ${TMP}_mask opt=area --q \
     	| sort -n -t'|' -k2 | tail -n1 | cut -d'|' -f1)
-    g.message message="Extract main area from mask ..."
+    if [ $GIS_FLAG_G -eq 0 ]; then 
+	g.message message="Extract main area from mask ..."
+    fi
     v.extract in=${TMP}_mask out=${TMP}_main list=$main_poly --o --q > /dev/null 2>&1
     
     v.type in=${TMP}_main out=${TMP}_lines type=boundary,line --o --q > /dev/null 2>&1
@@ -178,7 +182,9 @@ band_mask_gener()
     v.edit ${TMP}_lcats tool=merge type=line cats=0-99999 --q
     v.edit ${TMP}_lcats tool=delete type=centroid cats=0-99999 --q
     
-    g.message message="Generalizing vectors ..."
+    if [ $GIS_FLAG_G -eq 0 ]; then 
+	g.message message="Generalizing vectors ..."
+    fi
     thresh=$(($GIS_OPT_GENER_THRESH/20))
     v.generalize in=${TMP}_lcats out=${TMP}_lcats_gener method=douglas thresh=$thresh --o --q > /dev/null 2>&1
     
@@ -192,12 +198,19 @@ band_mask_gener()
     
     v.type in=${TMP}_lcats_gener3 out=${TMP}_bounds type=line,boundary --o --q > /dev/null 2>&1
     v.centroids in=${TMP}_bounds out=${TMP}_mask_gener --o --q > /dev/null 2>&1
-        
+    
     if [ $GIS_FLAG_F -eq 1 ]; then
-	VECT_NAME=$(echo "${MAP}_${GIS_OPT_OUTPUT_PREFIX}" | tr '[[:punct:]]' '_') 
-	g.message message="Save vector mask to <"$VECT_NAME"> ..."
-	g.copy vect=${TMP}_mask_gener,${VECT_NAME} --o --q > /dev/null 2>&1
-	g.message message="------------------------------------------------------------"
+	if [ $GIS_FLAG_G -eq 0 ]; then
+	    VECT_NAME=$(echo "${MAP}_${GIS_OPT_OUTPUT_PREFIX}" | tr '[[:punct:]]' '_') 
+	    g.message message="Save vector mask to <"$VECT_NAME"> ..."
+	    g.rename vect=${TMP}_mask_gener,${VECT_NAME} --o --q > /dev/null 2>&1
+	    g.message message="------------------------------------------------------------"
+	fi
+    fi
+    
+    if [ $GIS_FLAG_G -eq 1 ]; then
+	VECT_NAME="${MAP}_${TMP}_gener"
+	g.rename vect=${TMP}_mask_gener,${VECT_NAME} --o --q > /dev/null 2>&1
     fi
 }
 
@@ -255,7 +268,7 @@ coverage_mask_gener()
     
     if [ $GIS_FLAG_F -eq 1 ]; then
 	g.message message="Save coverage mask to <"${GIS_OPT_INPUT_BASE}_cover_mask"> ..."
-	g.copy vect=${TMP}_area,${GIS_OPT_INPUT_BASE}_cover_mask --o --q
+	g.rename vect=${TMP}_area,${GIS_OPT_INPUT_BASE}_cover_mask --o --q
 	g.message message="------------------------------------------------------------"
     fi
 }
@@ -263,8 +276,14 @@ coverage_mask_gener()
 coverage_mask_cut()
 {
     g.region rast=$MAP
-    g.message message="Rasterizing coverage mask ..."
-    v.to.rast in=${TMP}_area out=${TMP}_area use=cat --o --q > /dev/null 2>&1
+    
+    eval $(g.gisenv)
+    eval $(g.findfile element=cell mapset=$MAPSET file="${TMP}_area")
+    if [ ! "$file" ]; then
+	g.message message="Rasterizing coverage mask ..."
+	v.to.rast in=${TMP}_area out=${TMP}_area use=cat --q > /dev/null 2>&1
+    fi
+    
     r.mask in=${TMP}_area --q
     g.message message="Write trimmed raster to <"${MAP}.${GIS_OPT_OUTPUT_PREFIX}"> ..."
     r.mapcalc "${MAP}.${GIS_OPT_OUTPUT_PREFIX} = ${MAP}"
@@ -272,82 +291,200 @@ coverage_mask_cut()
     g.message message="------------------------------------------------------------"
 }
 
+gener_footprint()
+{
+    g.message message="=== Create generalized footprint for all bands  ==="
+    g.region res="$GIS_OPT_RAST_BUFFER"
+
+    g.mlist vect pat="${GIS_OPT_INPUT_BASE}*_${TMP}_gener" | while read TRIM; do 
+	start=$count
+	v.type in="$TRIM" out="${TMP}_line${count}" type=boundary,line --o --q 
+	v.edit "${TMP}_line${count}" tool=delete type=centroid cats=0-999 --q 
+	v.to.rast in="${TMP}_line${count}" out="${TMP}_rast${count}" use=cat --o --q
+	r.grow in="${TMP}_rast${count}" out="${TMP}_grow${count}" radius=3 --o --q
+	count=$(($start+1))
+    done
+    
+    for patch in $(g.mlist rast pat="${TMP}_grow*" sep=','); do
+    	r.patch in="$patch" out="${TMP}_patch" --o --q 
+    done
+
+
+    # for trim in $(g.mlist vect pat="${GIS_OPT_INPUT_BASE}*_${TMP}_gener"); do 
+    # 	START=$COUNT
+    # 	v.type in="$trim" out="${TMP}_line${COUNT}" type=boundary,line --o --q 
+    # 	COUNT=$(($START+1))
+    # done
+    # for line in $(g.mlist vect pat="${TMP}_line*"); do 
+    # 	START=$COUNT
+    # 	v.edit "$line" tool=delete type=centroid cats=0-999 --q 
+    # 	v.to.rast in="$line" out="${TMP}_rast${COUNT}" use=cat --o --q
+    # 	COUNT=$(($START+1))
+    # done
+    # for rast in $(g.mlist rast pat="${TMP}_rast*"); do
+    # 	START=$COUNT
+    # 	r.grow in="$rast" out="${TMP}_grow${COUNT}" radius=3 --o --q
+    # 	COUNT=$(($START+1))
+    # done
+    # for patch in $(g.mlist rast pat="${TMP}_grow*" sep=','); do
+    # 	r.patch in="$patch" out="${TMP}_patch" --o --q 
+    # done
+    
+    r.mapcalc "${TMP}_patch_null = if(isnull(${TMP}_patch),1,null())" 
+    r.to.vect in="${TMP}_patch_null" out="${TMP}_patch_null" feature=area --o --q
+    
+    main_poly=$(v.to.db -p "${TMP}_patch_null"  opt=area --q \
+    	| sort -n -t'|' -k2 | tail -n1 | cut -d'|' -f1)
+    
+    v.extract in="${TMP}_patch_null" out="${TMP}_patch_null_main" list="$main_poly" --o --q
+    thresh=$(($GIS_OPT_GENER_THRESH/5))
+    v.generalize in="${TMP}_patch_null_main" out="${TMP}_patch_null_gener" method=douglas threshold=$thresh --o --q > /dev/null 2>&1
+    dist_buffer=$(($GIS_OPT_RAST_BUFFER*3))
+    v.buffer -s in="${TMP}_patch_null_gener" out="${TMP}_patch_buffer" distance="$dist_buffer" --o --q 
+    
+    if [ $GIS_FLAG_F -eq 1 ]; then
+    	g.message message="Save generalized footprint to <"${GIS_OPT_INPUT_BASE}_gener_mask"> ..."
+    	g.rename vect=${TMP}_patch_buffer,${GIS_OPT_INPUT_BASE}_gener_mask --o --q 
+    	g.message message="------------------------------------------------------------"
+    fi
+}
+
+gener_footprint_cut()
+{
+    g.region rast="$MAP"
+    g.message message="Rasterizing generalized vector footprint ..." 
+    v.to.rast in=${TMP}_patch_buffer out=${TMP}_patch_buffer use=cat --o --q > /dev/null 2>&1 
+    g.message message="Write trimmed raster to <"${MAP}.${GIS_OPT_OUTPUT_PREFIX}"> ..."
+    r.mask in=${TMP}_patch_buffer --q  
+    r.mapcalc ""${MAP}.${GIS_OPT_OUTPUT_PREFIX}" = $MAP"
+    r.mask -r --q
+    g.message message="------------------------------------------------------------"
+}
+
+
 ############################################################
 ## main ##
 
 g.region save=${TMP}_OLD_REGION --q
 
+oIFS="$IFS"
+
+if [ $GIS_FLAG_M -eq 1 -o $GIS_FLAG_G -eq 1 ] && [ -z "$GIS_OPT_INPUT_BASE" ]; then
+    g.message -e message="Use flags \"-g\" and \"-m\" with option \"input_base\" (and optionally with \"input_prefix\")"
+    cleanup
+    exit 1
+fi
+
+if [ $GIS_FLAG_M -eq 1 -a $GIS_FLAG_G -eq 1 ]; then
+    g.message -e message="Don't use flags \"-g\" and \"-m\" together"
+    cleanup
+    exit 1
+fi
+
+if [ $GIS_FLAG_M -eq 1 -a $GIS_FLAG_F -eq 0 ] && [ -z "$GIS_OPT_INPUT" -a $GIS_FLAG_A -eq 0 ]; then
+    g.message -e message="Specify raster(s) with option \"input\" or use flag \"-a\" to choose all rasters"
+    cleanup
+    exit 1
+fi
+
+if [ $GIS_FLAG_G -eq 1 ] && [ -z "$GIS_OPT_INPUT" -a $GIS_FLAG_A -eq 0 ]; then
+    g.message -e message="Specify raster(s) with option \"input\" or use flag \"-a\" to choose all rasters"
+    cleanup
+    exit 1
+fi
+
 if [ $GIS_FLAG_A -eq 1 ]; then
-    if [ -n "$GIS_OPT_INPUT" ]; then
-	g.message -e "Use flag \"-a\" with options \"input_base\" and \"input_prefix\", but without \"input\""
+    if [ $GIS_FLAG_G -eq 1 -a $GIS_FLAG_F -eq 1 ]; then
+	g.message -e message="Don't use flag \"-a\" with flags \"-f\" and  \"-g\" "
 	cleanup
 	exit 1
-    elif [ -n "$GIS_OPT_INPUT_BASE" ]; then
+    fi 
+    if [ $GIS_FLAG_M -eq 1 -a $GIS_FLAG_F -eq 1 ]; then
+	g.message -e message="Don't use flag \"-a\" with flags \"-f\" and  \"-m\" "
+	cleanup
+	exit 1
+    fi 
+fi  
+
+if [ $GIS_FLAG_A -eq 1 ]; then
+    if [ -z "$GIS_OPT_INPUT" -a -n "$GIS_OPT_INPUT_BASE" ]; then
 	GIS_OPT_INPUT=$(g.mlist rast pat="${GIS_OPT_INPUT_BASE}*${GIS_OPT_INPUT_PREFIX}*" sep=',')
-    fi
-    if [ $GIS_FLAG_F -eq 1 -a $GIS_FLAG_M -eq 1 ]; then
-	g.message -e "Use flag \"-f\" without flag \"-a\""
+    elif [ -z "$GIS_OPT_INPUT" -a -z "$GIS_OPT_INPUT_BASE" ]; then
+	g.message -e message="Choose input raster(s) with \"input\" option or with \"input_base\" and \"input_prefix\" options"
 	cleanup
 	exit 1
     fi
 fi
 
-if [ -n "$GIS_OPT_INPUT" ]; then 
-    if [ $GIS_FLAG_M -eq 1 ]; then
-	if [ -n "$GIS_OPT_INPUT_BASE" ]; then
-	    coverage_mask
-	    
-	    ORIG_IFS="$IFS"
-	    IFS=','
-	    
-	    for MAP in $GIS_OPT_INPUT ; do
-	    	if_exist
-		g.message message="=== Processing raster: <"$MAP"> ==="
-	    	coverage_mask_gener
-		
-		if [ $GIS_FLAG_F -eq 0 ]; then
-		    coverage_mask_cut
-		fi
-	    done
-	    
-	    IFS="$ORIG_IFS"
+if [ $GIS_FLAG_M -eq 1 ]; then
+    coverage_mask
+    coverage_mask_gener
+    
+    IFS=','
 
-	else
-	    g.message -e "Use flag \"-m\" with options \"input_base\" and \"input_prefix\""
-	    cleanup
-	    exit 1
-	fi
-
-    else	
-	    
-	ORIG_IFS="$IFS"
-	IFS=','
-	
-	for MAP in $GIS_OPT_INPUT; do
-	    if_exist	
-	    g.message message="=== Processing raster: <"$MAP"> ==="
-	    band_mask
-	    band_mask_gener
-	    
-	    if [ $GIS_FLAG_F -eq 0 ]; then
-		band_mask_cut
-	    fi
+    if [ $GIS_FLAG_F -eq 0 ]; then
+	for MAP in $GIS_OPT_INPUT ; do
+	    g.message message="=== Processing raster: <"$MAP"> ===" 
+	    coverage_mask_cut
 	done
+    fi
+
+    IFS="$oIFS"
+
+elif [ $GIS_FLAG_G -eq 0 ]; then    
+    
+    IFS=','
+    
+    for MAP in $GIS_OPT_INPUT ; do
+	g.message message="=== Processing raster: <"$MAP"> ==="
+	band_mask
+	band_mask_gener	
 	
-	IFS="$ORIG_IFS"
-    fi
+	if [ $GIS_FLAG_F -eq 0 ]; then
+	    band_mask_cut
+	fi
+    done
+    
+    IFS="$oIFS"
+fi 
 
-elif [ $GIS_FLAG_M -eq 1 ] && [ $GIS_FLAG_F -eq 1 ]; then
+if [ $GIS_FLAG_G -eq 1 ]; then
     if [ -n "$GIS_OPT_INPUT_BASE" ]; then
-	coverage_mask
-	coverage_mask_gener
+	GENER_INPUT=$(g.mlist rast pat="${GIS_OPT_INPUT_BASE}*${GIS_OPT_INPUT_PREFIX}*" sep=',')
     fi
-fi    
+    
+    IFS=','
+    
+    g.message message="=== Make rasters masks and generalizing them ==="
+    for MAP in $GENER_INPUT; do
+	g.message message="Processing raster <"$MAP">"
+	band_mask
+	band_mask_gener
+    done
+    
+    IFS="$oIFS"
 
+    gener_footprint
+    
+    if [ "$GIS_FLAG_F" -eq 0 ]; then
+	if [ -z "$GIS_OPT_INPUT" ]; then
+	    GENER_F_INPUT=$(g.mlist rast pat="${GIS_OPT_INPUT_BASE}*${GIS_OPT_INPUT_PREFIX}*" sep=',')
+	else
+	    GENER_F_INPUT="$GIS_OPT_INPUT"
+	fi
+	
+	IFS=','
 
+	for MAP in $GENER_F_INPUT; do
+	    gener_footprint_cut
+ 	done
+	IFS="$oIFS"
+    fi
+fi	
 
-
-## cleanup
+IFS="$oIFS"
+	
+# cleanup
 cleanup
 
 exit 0
