@@ -116,30 +116,46 @@ except:
 
 def cleanup():
     # for rast in tmp_rast:
-    grass.run_command('g.region', region = tmp + 'old_region', quiet = True)
-    grass.run_command('g.remove', rast = MASK, flags = 'f', quiet = True)
+    grass.run_command('g.region', region = 'I_LANDSAT_TRIM' + '_old_region', quiet = True)
+
+    if grass.find_file('I_LANDSAT_TRIM', element = 'region')['file']:
+        grass.run_command('g.remove', rast = MASK, flags = 'f', quiet = True)
+        
     grass.run_command('g.mremove',
-                      rast = '*' + tmp + '*',
+                      rast = '*' + 'I_LANDSAT_TRIM' + '*',
                       flags = 'f',
                       quiet = True)
     grass.run_command('g.mremove',
-                      vect = '*' + tmp + '*',
+                      vect = '*' + 'I_LANDSAT_TRIM' + '*',
                       flags = 'f',
                       quiet = True)
     grass.run_command('g.remove',
-                      region = tmp + 'old_region',
+                      region = 'I_LANDSAT_TRIM' + '_old_region',
                       flags = 'f',
                       quiet = True)
     
 
 def band_mask():
-    rast_buffer = options['rast_buffer']
-    rast_thresh = rast_buffer / 3
-    print rast_thresh
+    tmp = 'I_LANDSAT_TRIM'
+    buf = options['rast_buffer']
+    thresh = int(buf) / 3
+    print thresh
+    
+
     
 def main():
     tmp = 'I_LANDSAT_TRIM'
+    buf = options['rast_buffer']
+    thresh = int(buf) / 3
+    print thresh
     
+
+
+
+    # tmp = 'I_LANDSAT_TRIM'
+    # buf = options['rast_buffer']
+    # thresh = int(buf) / 3
+    # print thresh
  
 if __name__ == "__main__":
     options, flags = grass.parser()
