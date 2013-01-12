@@ -11,7 +11,7 @@
 #               on the graphic monitor, save to vector line and update attribute table
 #               with LDM parameters.
 #
-# COPYRIGHTf:    (C) 2011,2013 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2011-2013 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -136,7 +136,6 @@ def main():
     mapset = grass.gisenv()['MAPSET']
 
     global tmp, nuldev
-    # tmp = None
     nuldev = None
 
     # setup temporary files
