@@ -113,10 +113,12 @@ def cleanup():
     grass.try_remove(tmp)
     for f in glob.glob(tmp + '*'):
         grass.try_remove(f)
+    grass.run_command('g.remove', vect = 'v_ldm_vect', flags = 'f',
+                      quiet = True, stderr = nuldev)
     grass.run_command('g.remove', vect = 'v_ldm_hull', flags = 'f',
                       quiet = True, stderr = nuldev)
-    grass.run_command('v.db.droptable', _map = inmap, table = 'tmp_tab',
-                      flags = 'f', quiet = True, stderr = nuldev)
+    grass.run_command('v.db.droptable', _map = inmap, 
+                      table = 'tmp_tab', flags = 'f', quiet = True, stderr = nuldev)
 
 def decimal2dms(dec_deg):
     deg = int(dec_deg)
@@ -163,39 +165,37 @@ def main():
     if flags['l'] and not output:
         grass.fatal(_("Please specify \"output\" vector map to save LDM line"))
         
-
     
     ####### DO IT #######
-    # compute LDM characteristics and print them
+    # copy input vector map and drop table
+    grass.run_command('g.copy', vect = (inmap, 'v_ldm_vect'), quiet = True, stderr = nuldev)
+    grass.run_command('v.db.droptable', map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
+    inmap = 'v_ldm_vect'
 
     # make convex hull around lines
     grass.run_command('v.hull', _input = inmap, output = 'v_ldm_hull',
                       quiet = True, stderr = nuldev)
 
-
     # find mean center coordinates
     p = grass.read_command('v.to.db', _map = 'v_ldm_hull', opt = 'coor',
                            _type = 'centroid', flags = 'p', quiet = True).strip()
     f = p.split('|')[1:3]
-
+    
     mc_x = f[0]
     mc_y = f[1]
 
     center_coords = str(mc_x) + ',' + str(mc_y)
 
-
     # count lines
     count = grass.vector_info_topo(inmap)['lines']
-    
 
     # add temp table with azimuths and lengths of lines
-    grass.run_command('v.db.addtable', _map = inmap, table = 'tmp_tab',
+    grass.run_command('v.db.addtable', _map = inmap, table = 'tmp_tab', 
                       columns = 'sum_azim double, len double', quiet = True, stderr = nuldev)
     grass.run_command('v.to.db', _map = inmap, opt = 'azimuth', 
                       columns = 'sum_azim', units = 'radians', quiet = True, stderr = nuldev)
-    grass.run_command('v.to.db', _map = inmap, opt = 'length', 
+    grass.run_command('v.to.db', _map = inmap, opt = 'length',  
                       columns = 'len', units = 'meters', quiet = True, stderr = nuldev)    
-
 
     # find end azimuth
     p = grass.pipe_command('v.db.select', _map = inmap, columns = 'sum_azim', flags = 'c', quiet = True)
@@ -216,7 +216,6 @@ def main():
     atan = math.atan2(ca_sin,ca_cos)
     end_azim = math.degrees(atan)
 
-
     # find compass angle    
     if end_azim < 0:
         a2 = -(end_azim)
@@ -230,7 +229,6 @@ def main():
         comp_angle = 360 - a2
     if (ca_sin < 0) and (ca_cos < 0):
         comp_angle = 360 - a2
-        
 
     # find LDM
     if end_azim < 0:
@@ -246,19 +244,17 @@ def main():
     if (ca_sin < 0) and (ca_cos < 0):
         ldm = 90 + a2
 
-
     # find circular variance
     sin_pow = math.pow(ca_sin,2) 
     cos_pow = math.pow(ca_cos,2) 
 
     circ_var = 1-(math.sqrt(sin_pow+cos_pow))/count
 
-
     # find start/end points of "mean" line
     end_azim_dms = decimal2dms(end_azim)
 
-    if end_azim < 0:
-        end_azim_dms = '-' + (str(end_azim_dms))
+    # if end_azim < 0:
+    #     end_azim_dms = '-' + (str(end_azim_dms))
 
     start_azim = 180 - end_azim
     start_azim_dms = decimal2dms(start_azim)
@@ -271,13 +267,13 @@ def main():
     half_length = float(mean_length)/2
 
     tmp1 = tmp + '.inf'
-    inf = file(tmp1, 'w')
-    print >> inf, 'N ' + str(end_azim_dms) + ' E ' + str(half_length)
-    inf.close()
-        
+    inf1 = file(tmp1, 'w')
+    print >> inf1, 'N ' + str(end_azim_dms) + ' E ' + str(half_length)
+    inf1.close()
+    
     end_coords = grass.read_command('m.cogo', _input = tmp1, output = '-',
                                     coord = center_coords, quiet = True).strip()
-    
+
     tmp2 = tmp + '.inf2'
     inf2 = file(tmp2, 'w')
     print >> inf2, 'N ' + str(start_azim_dms) + ' W ' + str(half_length)
@@ -285,7 +281,7 @@ def main():
 
     start_coords = grass.read_command('m.cogo', _input = tmp2, output = '-',
                                       coord = center_coords, quiet = True).strip()
-    
+
     # make "arrowhead" symbol
     if not flags['n']:
         tmp3 = tmp + '.arrowhead_1'
@@ -422,7 +418,7 @@ UPDATE $output SET AveLen = $mean_length;
         print_shell.append('circular_variance')
         
     print_vars = ["%0.3f" % comp_angle, "%0.3f" % ldm,
-                  "%0.3f" % float(mc_x) + ',' + "%0.3f" % float(mc_y),
+                  mc_x + ',' + mc_y,
                   "%0.3f" % mean_length]
     if circ_var:
         print_vars.append("%0.3f" % circ_var)
