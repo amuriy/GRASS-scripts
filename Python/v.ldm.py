@@ -145,7 +145,7 @@ def main():
     global tmp, nuldev, grass_version
     nuldev = None
 
-    grass_version = grass.version().version[0]
+    grass_version = grass.version()['version'][0]
 
     # setup temporary files
     tmp = grass.tempfile()
@@ -342,7 +342,7 @@ END
     if grass_version == '6':
         arrow_size = int(width) * 6
     elif grass_version == '7':
-        arrow_size = int(width) * 1.3
+        arrow_size = int(width) * 1.4
 
     arrow_azim = 360 - float(end_azim)
 
