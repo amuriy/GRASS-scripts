@@ -299,10 +299,11 @@ if [ -n "$GIS_OPT_LINES" ]; then
     
     TRIANGLE_CMD="triangle -Q -c -p "$FLAG_C" "$FLAG_A" "$FLAG_D" "$FLAG_Q" "$FLAG_L" "$FLAG_Y" "$FLAG_S" "$FLAG_I" "$FLAG_F""
     
-elif [ -z "$GIS_OPT_LINES" ] && [ "$GIS_FLAG_C" -eq 1 -o "$GIS_FLAG_Q" -eq 1 -o "$GIS_FLAG_A" -eq 1 -o "$GIS_FLAG_D" -eq 1 ]; then
-    g.message -e "To use flags <"-c">, <"-d">, <"-q">, <"-a"> choose <lines> option"
-    cleanup
-    exit 1
+# elif [ -z "$GIS_OPT_LINES" ] && [ "$GIS_FLAG_C" -eq 1 -o "$GIS_FLAG_Q" -eq 1 -o "$GIS_FLAG_A" -eq 1 -o "$GIS_FLAG_D" -eq 1 ]; then
+# elif [ -z "$GIS_OPT_LINES" ] && [ "$GIS_FLAG_C" -eq 1 -o "$GIS_FLAG_A" -eq 1 -o "$GIS_FLAG_D" -eq 1 ]; then
+#     g.message -e "To use flags <"-c">, <"-d">, <"-q">, <"-a"> choose <lines> option"
+#     cleanup
+#     exit 1
     
 else
     TRIANGLE_CMD="triangle -Q -c"

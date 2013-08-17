@@ -284,6 +284,8 @@ DIST = DIST + STEP;
 	    DIST_END=$(echo "$PTS" | cut -d" " -f6)
 	    OFFSET=$(echo "$PTS" | cut -d" " -f7)
 	    
+	    
+	    # echo "CREATE INDEX "${GIS_OPT_OUTPUT}_index" ON "$GIS_OPT_OUTPUT";" > "$TMP1.sql"
 	    echo "UPDATE "$GIS_OPT_OUTPUT" SET lcat="$LCAT" WHERE cat="$CAT";" > "$TMP1.sql"
 	    echo "UPDATE "$GIS_OPT_OUTPUT" SET segm_along="$SEGM_ALONG" WHERE cat="$CAT";" >> "$TMP1.sql"
 	    echo "UPDATE "$GIS_OPT_OUTPUT" SET dist_start="$DIST_START" WHERE cat="$CAT";" >> "$TMP1.sql"

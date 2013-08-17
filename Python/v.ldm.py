@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
 ############################################################################
 #
 # MODULE:       v.ldm
@@ -11,7 +11,7 @@
 #               on the graphic monitor, save to vector line and update attribute table
 #               with LDM parameters.
 #
-# VERSION: 2.0 (rewritten in Python, works both in GRASS 6.4 and GRASS 7.0)
+# VERSION: 0.2 (rewritten in Python, works both in GRASS 6.4 and GRASS 7.0)
 #
 # COPYRIGHT:    (C) 2011-2013 Alexander Muriy / GRASS Development Team
 #
@@ -90,6 +90,7 @@
 #%  key: g
 #%  description: Print in shell script style
 #%End
+############################################################################
 
 import sys
 import os
@@ -115,7 +116,7 @@ def cleanup():
     grass.try_remove(tmp)
     for f in glob.glob(tmp + '*'):
         grass.try_remove(f)
-    grass.run_command('g.remove', vect = 'v_ldm_vect', flags = 'f',
+    grass.run_command('g.mremove', vect = 'v_ldm_vect*', flags = 'f',
                       quiet = True, stderr = nuldev)
     grass.run_command('g.remove', vect = 'v_ldm_vect_cats', flags = 'f',
                       quiet = True, stderr = nuldev)
@@ -179,7 +180,133 @@ def main():
     grass.run_command('v.hull', _input = inmap, output = 'v_ldm_hull',
                       quiet = True, stderr = nuldev)
 
-    # find mean center coordinates
+
+
+    
+    ####################
+    
+    out_split = inmap + '_' + 'split'
+    grass.run_command('v.split', _input = inmap, vertices = 2, 
+                      out = out_split, quiet = True, stderr = nuldev)
+    out_catdel = inmap + '_' + 'catdel'
+    grass.run_command('v.category', _input = out_split, opt = 'del', 
+                      output = out_catdel, quiet = True, stderr = nuldev)
+    out_newcats = inmap + '_' + 'newcats'
+    grass.run_command('v.category', _input = out_catdel, opt = 'add', 
+                      output = out_newcats, quiet = True, stderr = nuldev)
+
+    c = grass.pipe_command('v.category', _input = out_newcats, opt = 'print',
+                           flags = 'g', quiet = True, stderr = nuldev)
+    cc = c.communicate()[0].strip().split('\n')
+    
+    for cat in cc:
+        out_cat = out_newcats + '_' + cat
+        grass.run_command('v.extract', _input = out_newcats, _list = cat, 
+                          out = out_cat, quiet = True)
+
+        p = grass.read_command('v.to.db', _map = out_cat, opt = 'length', 
+                           flags = 'p', quiet = True).strip()
+        llen = p.split('|')[1]
+        llen2 = (float(llen)/2)+1
+        
+        out_pts = out_cat + '_' + 'pts'
+        print out_pts
+        grass.run_command('v.to.points', _input = out_cat, output = out_pts,
+                          dmax = llen2, quiet = True)
+        
+        
+        
+        
+        
+        grass.run_command('d.vect', _map = out_cat, width = 2)
+        grass.run_command('d.vect', _map = out_pts, color = 'red', size = 8)
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+    
+        # grass.run_command('d.vect', _map = out_split, width = 2)
+        # grass.run_command('d.vect', _map = out_pts, color = 'red', size = 8)
+
+
+    # c = grass.pipe_command('v.category', _input = inmap, opt = 'print',
+    #                        flags = 'g', quiet = True, stderr = nuldev)
+    # cc = c.communicate()[0].strip().split('\n')
+    
+    # cat_list = []
+    
+    # for cat in cc:
+    #     out_cat = inmap + '_' + cat
+    #     # print out_cat
+    #     grass.run_command('v.extract', _input = inmap, _list = cat, 
+    #                       out = out_cat, quiet = True)
+    #     out_split = out_cat + '_' + 'split'
+    #     grass.run_command('v.split', _input = out_cat, vertices = 2, 
+    #                       out = out_split, quiet = True)
+    #     split_count = grass.vector_info_topo(out_split)['lines']
+    #     # print split_count
+
+    #     if split_count == 1:
+    #         cat_list.append(out_split)
+    #     else:
+    #         out_cat2 = inmap + '_' + cat + '2'
+    #         grass.run_command('v.category', _input = out_split, opt = 'add', 
+    #                           output = out_cat2, layer = 2, quiet = True, 
+    #                           stderr = nuldev)
+            
+    #         c2 = grass.pipe_command('v.category', _input = out_cat2, opt = 'print',
+    #                            layer = 2, flags = 'g', quiet = True, stderr = nuldev)
+    #         cc2 = c2.communicate()[0].strip().split('\n')
+    #         for cat2 in cc2:
+    #             out_cat3 = out_cat + '_' + cat2
+    #             grass.run_command('v.extract', _input = out_cat2, _list = cat2, 
+    #                               layer = 2, new = cat2, out = out_cat3, 
+    #                               quiet = True)
+    #             out_cat4 = out_cat3 + '_' + 'cat'
+    #             grass.run_command('v.category', _input = out_cat3, opt = 'chlayer', 
+    #                           output = out_cat4, layer = (2,1), quiet = True, 
+    #                           stderr = nuldev)
+    #             out_cat5 = out_cat4 + '_' + 'cat'
+    #             grass.run_command('v.category', _input = out_cat4, opt = 'add', 
+    #                               output = out_cat5, layer = 1, quiet = True, 
+    #                               stderr = nuldev)
+    #             cat_list.append(out_cat5)
+
+    # for llist in cat_list:
+    #     print llist
+        # p = grass.read_command('v.to.db', _map = llist, opt = 'length', 
+        #                        flags = 'p', quiet = True).strip()
+        # leng = p.split('|')[1]
+        # leng_2 = (float(leng)/2)+3
+        
+        # out_pts = llist + '_' + 'pts'
+        # grass.run_command('v.to.points', _input = llist, output = out_pts,
+        #                   dmax = leng_2, quiet = True)
+        
+        # grass.run_command('d.vect', _map = out_split, width = 2)
+        # grass.run_command('d.vect', _map = out_pts, color = 'red', size = 8)
+            
+            
+        
+        
+        
+        
+    ####################
+        
+        
+
+
+
     p = grass.read_command('v.to.db', _map = 'v_ldm_hull', opt = 'coor',
                            _type = 'centroid', flags = 'p', quiet = True).strip()
     f = p.split('|')[1:3]
@@ -188,6 +315,9 @@ def main():
     mc_y = f[1]
 
     center_coords = str(mc_x) + ',' + str(mc_y)
+
+
+    ####################
 
     # count lines
     count = grass.vector_info_topo(inmap)['lines']
