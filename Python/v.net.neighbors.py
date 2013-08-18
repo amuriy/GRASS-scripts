@@ -11,7 +11,7 @@
 #               their category numbers to attribute table of net (layer 2). 
 #               Optionally print neighbors' categories or dumps them to text file.
 #
-# VERSION: 0.2
+# VERSION: 0.3
 #
 # COPYRIGHT:    (C) 2013 Alexander Muriy / GRASS Development Team
 #
@@ -93,7 +93,7 @@ def main():
 
     # check for table in net vector map
     try:
-        f = grass.vector_db(inmap)[1]
+        f = grass.vector_db(inmap)[2]
     except KeyError:
         grass.run_command('v.db.addtable', _map = inmap, layer = 2,
                           quiet = True, stderr = nuldev)
@@ -102,10 +102,20 @@ def main():
     nodes = tmpf + '_nodes'
     lines = tmpf + '_lines'
 
+    iflines = grass.vector_info_topo(inmap)['lines']
+    ifbounds = grass.vector_info_topo(inmap)['boundaries']
+    if iflines != 0:
+        vect_type = 'line'
+    if ifbounds != 0:
+        vect_type = 'boundary'
+    
+    if iflines != 0 and ifbounds != 0:
+        grass.fatal(_("Input net vector map must have lines OR boundaries, not both"))
+
     grass.run_command('v.extract', input = inmap, output = nodes, layer = 2, 
                       _type = 'point', flags = 't', quiet = True, stderr = nuldev)
     grass.run_command('v.extract', input = inmap, output = lines,  
-                      _type = 'line', flags = 't', quiet = True, stderr = nuldev)
+                      _type = vect_type, flags = 't', quiet = True, stderr = nuldev)
 
     ## filter nodes on line intersections if with '-i' flag 
     if flags['i']:
