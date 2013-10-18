@@ -198,14 +198,15 @@ def main():
     c = grass.pipe_command('v.category', _input = out_newcats, opt = 'print',
                            flags = 'g', quiet = True, stderr = nuldev)
     cc = c.communicate()[0].strip().split('\n')
-    
+
+
     for cat in cc:
         out_cat = out_newcats + '_' + cat
         grass.run_command('v.extract', _input = out_newcats, _list = cat, 
                           out = out_cat, quiet = True)
 
         p = grass.read_command('v.to.db', _map = out_cat, opt = 'length', 
-                           flags = 'p', quiet = True).strip()
+                               flags = 'p', quiet = True).strip()
         llen = p.split('|')[1]
         llen2 = (float(llen)/2)+1
         
@@ -215,14 +216,14 @@ def main():
                           dmax = llen2, quiet = True)
         
         
-        
+
         
         
         grass.run_command('d.vect', _map = out_cat, width = 2)
         grass.run_command('d.vect', _map = out_pts, color = 'red', size = 8)
 
 
-
+        
         
 
 
