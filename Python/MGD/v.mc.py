@@ -11,7 +11,7 @@
 #
 # For line and polygon features, feature centroids are used in distance computations. For multipoints, polylines, or polygons with multiple parts, the centroid is computed using the weighted mean center of all feature parts. The weighting for point features is 1, for line features is length, and for polygon features is area.
 #
-# VERSION: 0.1
+# VERSION: 0.2
 #
 # COPYRIGHT:    (C) 2013 Alexander Muriy / GRASS Development Team
 #
@@ -74,10 +74,11 @@
 # import sys
 import os
 import glob
+import re
 # import string
 # import shutil
 import atexit
-import math
+# import math
 
 try:
     import grass.script as grass
@@ -126,8 +127,8 @@ def main():
     if ifpoints == 0 and iflines == 0 and ifbounds == 0 and ifareas == 0:
         grass.fatal(_("<%s> map is empty.") % inmap)
 
-    # extract different geometries to different maps
-    ## points
+    ### extract different geometries to different maps
+    # points
     if ifpoints > 0:
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_points', 
                           _type = 'point', quiet = True, stderr = nuldev)
@@ -150,170 +151,187 @@ def main():
         
         print "Points mean center: %s, %s" % (xmean, ymean)
 
-    ## lines
+    ### lines
     if iflines > 0:
         # extract lines from input map
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_lines', 
                           _type = 'line', quiet = True, stderr = nuldev)
         
-        c = grass.pipe_command('v.category', _input = 'v_mc_lines', opt = 'print',
+        # delete original categories and make new ones
+        in_catdel = 'v_mc_lines' + '_' + 'catdel'
+        grass.run_command('v.category', _input = 'v_mc_lines', opt = 'del', 
+                          output = in_catdel, quiet = True, stderr = nuldev)
+        in_newcats = 'v_mc_lines' + '_' + 'newcats'
+        grass.run_command('v.category', _input = in_catdel, opt = 'add', 
+                          output = in_newcats, quiet = True, stderr = nuldev)
+
+        ### separate lines from polylines
+        # parse the output of v.out.ascii 
+        asc = grass.pipe_command('v.out.ascii', _input = in_newcats, _format ='standard', 
+                           quiet = True, stderr = nuldev)
+        ascs = asc.communicate()[0].strip().split('\n')
+        
+        vert_list = []
+        cat_list = []
+
+        for line in ascs:
+            match1 = re.search('^L', line)
+            match2 = re.search('^ [0-9] ', line)
+            if match1:
+                vert_list.append(line.strip().replace("  "," ").replace("   "," "))
+            if match2:
+                cat_list.append(line.strip().replace("  "," ").replace("   "," "))
+                
+        lines_list = []
+        poly_list = []
+
+        for l in zip(vert_list,cat_list):
+            if l[0][2] == '2':
+                lines_list.append(l[1][2:])
+            else:
+                poly_list.append(l[1][2:])
+        
+        lines_ex = ",".join(lines_list)
+        poly_ex = ",".join(poly_list)
+        
+        # print "Lines are %s" % lines_ex
+        # print "Polylines are %s" % poly_ex
+
+        ### explode all lines
+        out_split = 'v_mc_lines' + '_' + 'split'
+        grass.run_command('v.split', _input = in_newcats, vertices = 2, 
+                          out = out_split, quiet = True, stderr = nuldev)
+        
+        # populate oldcats list
+        oldcats_list = []
+        c = grass.pipe_command('v.category', _input = out_split, opt = 'print',
                                flags = 'g', quiet = True, stderr = nuldev)
         cc = c.communicate()[0].strip().split('\n')
-        
-        lns_xlist = []
-        lns_ylist = []
 
         for cat in cc:
-            out_cat = 'v_mc_lines' + '_' + cat
-            # extract each poly(line) to separate map
-            grass.run_command('v.extract', _input = 'v_mc_lines', _list = cat, 
-                              out = out_cat, quiet = True)
-            
-            # split poly(lines) to simple lines
-            out_split = out_cat + '_' + 'split'
-            grass.run_command('v.split', _input = out_cat, vertices = 2, 
-                              out = out_split, quiet = True, stderr = nuldev)
-            
-            # delete old categories and assign new categories to lines
-            out_catdel = out_split + '_' + 'catdel'
-            grass.run_command('v.category', _input = out_split, opt = 'del', 
-                              output = out_catdel, quiet = True, stderr = nuldev)
-            out_newcats = out_split + '_' + 'newcats'
-            grass.run_command('v.category', _input = out_catdel, opt = 'add', 
-                              output = out_newcats, quiet = True, stderr = nuldev)
-            
+            oldcats_list.append(cat)
 
-            p = grass.read_command('v.to.db', _map = out_newcats, opt = 'length', 
-                                       flags = 'p', quiet = True).strip()
-            llen = p.split('|')[1]
-            print type(float(llen))
-            llen2 = float(llen)/2+1
-            
-            out_pts = out_newcats + '_' + 'pts'
-            grass.run_command('v.to.points', _input = out_newcats, output = out_pts,
-                              dmax = llen2, quiet = True)
-            coor = grass.pipe_command('v.to.db', _map = out_pts, opt = 'coor', layer = 2,
-                                      _type = 'point', flags = 'p', quiet = True)
-            cc = coor.communicate()[0].strip().split('\n')
+        # make segments with new cats
+        out_catdel = out_split + '_' + 'catdel'
+        grass.run_command('v.category', _input = out_split, opt = 'del', 
+                          output = out_catdel, quiet = True, stderr = nuldev)
+        
+        out_newcats = out_split + '_' + 'newcats'
+        grass.run_command('v.category', _input = out_catdel, opt = 'add', 
+                          output = out_newcats, quiet = True, stderr = nuldev)
 
-            for coords in cc:
-                coor_cat = coords.split('|')[0]
-                if coor_cat == '2':
-                    lns_x = coords.split('|')[1]
-                    lns_y = coords.split('|')[2]
-                    
-                    lns_xlist.append(float(lns_x))
-                    lns_ylist.append(float(lns_y))
-                    
+        # populate newcats list        
+        newcats_list = []
+        c = grass.pipe_command('v.category', _input = out_newcats, opt = 'print',
+                               flags = 'g', quiet = True, stderr = nuldev)
+        cc = c.communicate()[0].strip().split('\n')
 
+        for cat in cc:
+            newcats_list.append(cat)
 
+        print
 
-            cat_geom =  grass.vector_info_topo(out_split)['lines']
-
-
-            
-
-            if cat_geom == 1:
-                print "cat %s is line" % cat
-                
-                # p = grass.read_command('v.to.db', _map = out_split, opt = 'length', 
-                #                        flags = 'p', quiet = True).strip()
-                # llen = p.split('|')[1]
-                # llen2 = (float(llen)/2)+1
-                
-                # out_pts = out_split + '_' + 'pts'
-                # grass.run_command('v.to.points', _input = out_split, output = out_pts,
-                #                   dmax = llen2, quiet = True)
-                # coor = grass.pipe_command('v.to.db', _map = out_pts, opt = 'coor', layer = 2,
-                #                           _type = 'point', flags = 'p', quiet = True)
-                # cc = coor.communicate()[0].strip().split('\n')
-
-                # for coords in cc:
-                #     coor_cat = coords.split('|')[0]
-                #     if coor_cat == '2':
-                #         lns_x = coords.split('|')[1]
-                #         lns_y = coords.split('|')[2]
-                        
-                #         lns_xlist.append(float(lns_x))
-                #         lns_ylist.append(float(lns_y))
-                
-            else:
-                print "cat %s is polyline with %s lines" % (cat, cat_geom)
-
-                out_catdel = out_split + '_' + 'catdel'
-                grass.run_command('v.category', _input = out_split, opt = 'del', 
-                                  output = out_catdel, quiet = True, stderr = nuldev)
-                out_newcats = out_split + '_' + 'newcats'
-                grass.run_command('v.category', _input = out_catdel, opt = 'add', 
-                                  output = out_newcats, quiet = True, stderr = nuldev)
-
-                p = grass.pipe_command('v.to.db', _map = out_newcats, opt = 'length', 
+        # compute lines' length and populate length list
+        len_list = []
+        p = grass.pipe_command('v.to.db', _map = out_newcats, opt = 'length', 
                                        flags = 'p', quiet = True)
-                pc = p.communicate()[0].strip().split('\n')
-                
-                plens = []
-                
-                for xy in pc:
-                    xy_cat = xy.split('|')[0]
-                    xy_coors = xy.split('|')[1]
-                    
-                    plens.append(xy_coors)
-                
-                # print plens
-                
-                
-                
-
-
-
-                
+        pc = p.communicate()[0].strip().split('\n')
+        for plen in pc:
+            tolist = plen.split('|')[1]
+            len_list.append(float(tolist))
             
-        # print lns_xlist
-        # print lns_ylist
+        # get coordinates of lines' centroids
+        p = grass.pipe_command('v.to.db', _map = out_newcats, opt = 'length', 
+                               flags = 'p', quiet = True)
+        pc = p.communicate()[0].strip().split('\n')
+        
+        tmp_seg = tmp + '.inf'
+        inf_seg = file(tmp_seg, 'a+b')
 
+        for lns in pc:
+            lcat = lns.split('|')[0]
+            llen = lns.split('|')[1]
+            llen2 = float(llen)/2
+            line = "P %s %s %s\n" % (lcat, lcat, llen2) 
+            inf_seg.write(line)
 
+        inf_seg.close()
+    
+        # make central points of lines
+        out_pts = out_newcats + '_' + 'pts'
+        grass.run_command('v.segment', _input = out_newcats, output = out_pts,
+                          _file = tmp_seg, quiet = True, stderr = nuldev)
 
         
-        # out_split = 'v_mc_lines' + '_' + 'split'
-        # grass.run_command('v.split', _input = 'v_mc_lines', vertices = 2, 
-        #                   out = out_split, quiet = True, stderr = nuldev)
-        # out_catdel = 'v_mc_lines' + '_' + 'catdel'
-        # grass.run_command('v.category', _input = out_split, opt = 'del', 
-        #                   output = out_catdel, quiet = True, stderr = nuldev)
-        # out_newcats = 'v_mc_lines' + '_' + 'newcats'
-        # grass.run_command('v.category', _input = out_catdel, opt = 'add', 
-        #                   output = out_newcats, quiet = True, stderr = nuldev)
-
-        # c = grass.pipe_command('v.category', _input = out_newcats, opt = 'print',
-        #                        flags = 'g', quiet = True, stderr = nuldev)
-        # cc = c.communicate()[0].strip().split('\n')
-
-        # for cat in cc:
-        #     print cat
-        #     out_cat = out_newcats + '_' + cat
-        #     grass.run_command('v.extract', _input = out_newcats, _list = cat, 
-        #                       out = out_cat, quiet = True)
-
-
-            
-        #     p = grass.read_command('v.to.db', _map = out_cat, opt = 'length', 
-        #                        flags = 'p', quiet = True).strip()
-        #     llen = p.split('|')[1]
-        #     llen2 = (float(llen)/2)+1
-            
-        #     out_pts = out_cat + '_' + 'pts'
-        #     print out_pts
-        #     grass.run_command('v.to.points', _input = out_cat, output = out_pts,
-        #                       dmax = llen2, quiet = True)
-            
-        #     grass.run_command('d.vect', _map = out_cat, width = 2)
-        #     grass.run_command('d.vect', _map = out_pts, color = 'red', size = 8)
-
-
-            
+        coor = grass.pipe_command('v.to.db', _map = out_pts, opt = 'coor',  
+                                  _type = 'point', flags = 'p', quiet = True)
+        cc = coor.communicate()[0].strip().split('\n')
         
+        # populate coords list
+        coords_list = []
+        
+        for coords in cc:
+            tolist = coords.split('|')[1:3]
+            tolist_fl = [float(x) for x in tolist]
+            coords_list.append(tolist_fl)
+
+        # make full list with new cats, old cats, lengths and coords
+        zip_list = zip(oldcats_list, newcats_list, len_list, coords_list)
+
+        mean_xy_list = []
+
+        # extract mean XY for simple lines
+        for lns in lines_list:
+            ln = [x for x in zip_list if x[0] == lns]
+            mean_xy_list.append(ln[0][3])
+            
+        # compute mean XY for polylines
+        for po in poly_list:
+            li = [x for x in zip_list if x[0] == po]
+
+            wx_list = []
+            wy_list = []
+            w_list = []
+            
+            for xy in li:
+                wx = xy[2]*xy[3][0]
+                wy = xy[2]*xy[3][1]
+                wx_list.append(wx)
+                wy_list.append(wy)
+                w_list.append(xy[2])
+                
+            sum_wx = sum(wx_list)
+            sum_wy = sum(wy_list)
+            sum_w = sum(w_list)
+            
+            mean_x = sum_wx/sum_w
+            mean_y = sum_wy/sum_w
+            mean_xy = [mean_x, mean_y]
+            mean_xy_list.append(mean_xy)
+        
+        # compute final mean XY for all lines
+        lns_finx = []
+        lns_finy = []
+        
+        pts_count = len(mean_xy_list)
+        
+        for xy in mean_xy_list:
+            lns_finx.append(xy[0])
+            lns_finy.append(xy[1])
+
+        finx = sum(lns_finx)/pts_count
+        finy = sum(lns_finy)/pts_count
+
+        print finx, finy
+            
+
         
 
+
+        # fin_lns_list = []
+
+
+  
 
 
     ## boundaries
