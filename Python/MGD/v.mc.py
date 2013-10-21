@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 ############################################################################
 #
-# MODULE:       v.mc
+# MODULE:       v.meancenter
 # AUTHOR(S):    Alexander Muriy
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
 #
 # PURPOSE:      Compute "Mean Center" — the geographic center (or the center of concentration) for a set of vector features.
 #
-# For line and polygon features, feature centroids are used in distance computations. For multipoints, polylines, or polygons with multiple parts, the centroid is computed using the weighted mean center of all feature parts. The weighting for point features is 1, for line features is length, and for polygon features is area.
+# TODO: 
+# - Calculate also the mean center for a 3rd dimension if vector map is 3D
+# - Work with fields
 #
 # VERSION: 0.2
 #
@@ -42,7 +44,7 @@
 #%Option
 #%  key: output
 #%  type: string
-#%  required: yes
+#%  required: no
 #%  multiple: no
 #%  key_desc: name
 #%  description: Name of output vector map
@@ -68,6 +70,10 @@
 #%  required: no
 #%  multiple: no
 #%  description: A numeric field containing attribute values from which an average value will be calculated
+#%End
+#%Flag
+#%  key: x
+#%  description: Show mean center point on the screen
 #%End
 ############################################################################
 
@@ -101,7 +107,7 @@ def cleanup():
 
 def main():
     inmap = options['input']
-    output = options['output']
+    outmap = options['output']
 
     # mapset = grass.gisenv()['MAPSET']
 
@@ -122,6 +128,7 @@ def main():
     ifpoints = geom.get('points')
     iflines = geom.get('lines')
     ifbounds = geom.get('boundaries')
+    ifcent = geom.get('centroids')
     ifareas = geom.get('areas')
 
     if ifpoints == 0 and iflines == 0 and ifbounds == 0 and ifareas == 0:
@@ -149,14 +156,79 @@ def main():
         xmean = sum(xlist)/ifpoints
         ymean = sum(ylist)/ifpoints
         
-        print "Points mean center: %s, %s" % (xmean, ymean)
+        print "Points' mean center: %s, %s" % (xmean, ymean)
+
+        
+    ## polygons
+    if ifareas > 0 and ifcent > 0:
+        grass.run_command('v.extract', _input = inmap, out = 'v_mc_areas', 
+                          _type = 'area', quiet = True, stderr = nuldev)
+        
+        # delete original categories of centroids and make new ones
+        grass.run_command('v.edit', _map = 'v_mc_areas', tool = 'delete',
+                          cats = '0-999999', _type = 'centroid', 
+                          quiet = True, stderr = nuldev)
+        
+        newcent = 'v_mc_areas' + '_' + 'newcent'
+        grass.run_command('v.centroids', _input = 'v_mc_areas', 
+                          out = newcent, quiet = True, stderr = nuldev)
+
+        coor = grass.pipe_command('v.to.db', _map = newcent, opt = 'coor',  
+                                  _type = 'centroid', flags = 'p', quiet = True)
+        cc = coor.communicate()[0].strip().split('\n')
+
+        # populate cats and coords lists of centroids
+        cent_cats = []
+        cent_coords = []
+        
+        for coords in cc:
+            cent_cats.append(coords.split('|')[0])
+            tolist = coords.split('|')[1:3]
+            tolist_fl = [float(x) for x in tolist]
+            cent_coords.append(tolist_fl)
+            
+        # # populate areas' list of polygons (need for "multipolygons")
+        # areas_list = []
+        # areas = grass.pipe_command('v.to.db', _map = newcent, opt = 'area',  
+        #                            flags = 'p', quiet = True)
+        # ars = areas.communicate()[0].strip().split('\n')
+        
+        # for ar in ars:
+        #     areas_list.append(ar.split('|')[1])
+            
+        print zip(cent_cats, cent_coords)
+
+
+
+    ## boundaries
+    if ifbounds > 0:
+        grass.run_command('v.extract', _input = inmap, out = 'v_mc_bounds', 
+                          _type = 'boundary', quiet = True, stderr = nuldev)
+
+        bounds_sel = 'v_mc_bounds' + '_' + 'sel'
+        grass.run_command('v.select', ain = 'v_mc_bounds', _bin = 'v_mc_areas', 
+                          out = bounds_sel, flags = 'r', quiet = True, stderr = nuldev)
+        
+        bounds_lin = bounds_sel + '_' + 'lines'
+        grass.run_command('v.type', _input = bounds_sel, out = bounds_lin,
+                          _type = ('boundary', 'line'), quiet = True, stderr = nuldev)
 
     ### lines
+    if iflines == 0 and grass.find_file(bounds_lin, element = 'vector')['file']:
+        inmap = bounds_lin
+        geom =  grass.vector_info_topo(bounds_lin)
+        iflines = geom.get('lines')
+        
     if iflines > 0:
         # extract lines from input map
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_lines', 
                           _type = 'line', quiet = True, stderr = nuldev)
-        
+
+        # patch with lines from bounds if needed
+        if grass.find_file('v_mc_bounds_sel_lines', element = 'vector')['file']:
+            grass.run_command('v.patch', _input = ('v_mc_lines', 'v_mc_bounds_sel_lines'), 
+                              out = 'v_mc_lines_bounds', quiet = True, stderr = nuldev)
+
         # delete original categories and make new ones
         in_catdel = 'v_mc_lines' + '_' + 'catdel'
         grass.run_command('v.category', _input = 'v_mc_lines', opt = 'del', 
@@ -228,8 +300,6 @@ def main():
 
         for cat in cc:
             newcats_list.append(cat)
-
-        print
 
         # compute lines' length and populate length list
         len_list = []
@@ -319,43 +389,15 @@ def main():
             lns_finx.append(xy[0])
             lns_finy.append(xy[1])
 
-        finx = sum(lns_finx)/pts_count
-        finy = sum(lns_finy)/pts_count
-
-        print finx, finy
-            
-
+        finx_lines = sum(lns_finx)/pts_count
+        finy_lines = sum(lns_finy)/pts_count
         
-
-
-        # fin_lns_list = []
-
-
-  
-
-
-    ## boundaries
-    if ifbounds > 0:
-        grass.run_command('v.extract', _input = inmap, out = 'v_mc_bounds', 
-                          _type = 'boundary', quiet = True, stderr = nuldev)
-
-    ## areas
-    if ifareas > 0:
-        grass.run_command('v.extract', _input = inmap, out = 'v_mc_areas', 
-                          _type = 'area', quiet = True, stderr = nuldev)
-
+        print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
+    
 
     
-    # mlist = grass.pipe_command('g.mlist', _type = 'vect', pattern = 'v_mc_*')
-    # mlist2 = mlist.communicate()[0].strip().split('\n')
-    # for vect in mlist2:
-    #     if '_points' in vect:
-    #         print vect
 
 
-        # if '_lines' in vect:
-        #     print vect
-            
             
             
 
@@ -368,15 +410,6 @@ def main():
 
     
 
-
-    # ####### DO IT #######
-    # # copy input vector map and drop table
-    # grass.run_command('g.copy', vect = (inmap, 'v_ldm_vect'), quiet = True, stderr = nuldev)
-    # db = grass.vector_db('v_ldm_vect', quiet = True, stderr = nuldev) 
-    # if db != {}:
-    #     grass.run_command('v.db.droptable', _map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
-
-    # inmap = 'v_mc'
 
 
 if __name__ == "__main__":
