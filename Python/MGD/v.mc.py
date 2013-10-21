@@ -114,8 +114,6 @@ def main():
     global tmp, nuldev, grass_version
     nuldev = None
 
-    # grass_version = grass.version()['version'][0]
-
     # setup temporary files
     tmp = grass.tempfile()
 
@@ -134,8 +132,11 @@ def main():
     if ifpoints == 0 and iflines == 0 and ifbounds == 0 and ifareas == 0:
         grass.fatal(_("<%s> map is empty.") % inmap)
 
-    ### extract different geometries to different maps
-    # points
+    ### extract different geometries to different maps and compute mean center
+
+    mean_centers = []
+
+    #### points
     if ifpoints > 0:
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_points', 
                           _type = 'point', quiet = True, stderr = nuldev)
@@ -157,9 +158,12 @@ def main():
         ymean = sum(ylist)/ifpoints
         
         print "Points' mean center: %s, %s" % (xmean, ymean)
+        
+        points_append = (xmean, ymean)
+        mean_centers.append(points_append)
 
         
-    ## polygons
+    #### polygons
     if ifareas > 0 and ifcent > 0:
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_areas', 
                           _type = 'area', quiet = True, stderr = nuldev)
@@ -182,11 +186,12 @@ def main():
         cent_coords = []
         
         for coords in cc:
-            cent_cats.append(coords.split('|')[0])
+            # cent_cats.append(coords.split('|')[0])
             tolist = coords.split('|')[1:3]
             tolist_fl = [float(x) for x in tolist]
             cent_coords.append(tolist_fl)
             
+
         # # populate areas' list of polygons (need for "multipolygons")
         # areas_list = []
         # areas = grass.pipe_command('v.to.db', _map = newcent, opt = 'area',  
@@ -196,24 +201,45 @@ def main():
         # for ar in ars:
         #     areas_list.append(ar.split('|')[1])
             
-        print zip(cent_cats, cent_coords)
 
 
+        # compute final mean XY for areas
+        ar_finx = []
+        ar_finy = []
+        
+        ar_count = len(cent_coords)
+        
+        for xy in cent_coords:
+            ar_finx.append(xy[0])
+            ar_finy.append(xy[1])
 
-    ## boundaries
+        finx_areas = sum(ar_finx)/ar_count
+        finy_areas = sum(ar_finy)/ar_count
+        
+        areas_append = (finx_areas, finy_areas)
+        mean_centers.append(areas_append)
+
+        print "Areas' mean center: %s, %s" % (finx_areas, finy_areas)
+
+
+    #### boundaries
     if ifbounds > 0:
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_bounds', 
                           _type = 'boundary', quiet = True, stderr = nuldev)
+    
+        if ifcent > 0:
+            bounds_sel = 'v_mc_bounds' + '_' + 'sel'
+            grass.run_command('v.select', ainput = 'v_mc_bounds', binput = 'v_mc_areas', 
+                              out = bounds_sel, flags = 'r', quiet = True, stderr = nuldev)
+        else:
+            bounds_sel = 'v_mc_bounds'
 
-        bounds_sel = 'v_mc_bounds' + '_' + 'sel'
-        grass.run_command('v.select', ain = 'v_mc_bounds', _bin = 'v_mc_areas', 
-                          out = bounds_sel, flags = 'r', quiet = True, stderr = nuldev)
-        
         bounds_lin = bounds_sel + '_' + 'lines'
         grass.run_command('v.type', _input = bounds_sel, out = bounds_lin,
                           _type = ('boundary', 'line'), quiet = True, stderr = nuldev)
 
-    ### lines
+
+    #### lines
     if iflines == 0 and grass.find_file(bounds_lin, element = 'vector')['file']:
         inmap = bounds_lin
         geom =  grass.vector_info_topo(bounds_lin)
@@ -396,24 +422,27 @@ def main():
         finx_lines = sum(lns_finx)/pts_count
         finy_lines = sum(lns_finy)/pts_count
         
+        lines_append = (finx_lines,finy_lines)
+        mean_centers.append(lines_append)
+        
         print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
     
-
-    
-
-
-            
-            
-
         
-
+    #### compute final mean XY for all geometries
+    all_finx = []
+    all_finy = []
     
+    all_count = len(mean_centers)
     
+    for xy in mean_centers:
+        all_finx.append(xy[0])
+        all_finy.append(xy[1])
     
-        
-
+    finx_all = sum(all_finx)/all_count
+    finy_all = sum(all_finy)/all_count
     
-
+    print "Mean center: %s, %s" % (finx_all, finy_all)
+    
 
 
 if __name__ == "__main__":
