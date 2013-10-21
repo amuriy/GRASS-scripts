@@ -225,13 +225,17 @@ def main():
                           _type = 'line', quiet = True, stderr = nuldev)
 
         # patch with lines from bounds if needed
-        if grass.find_file('v_mc_bounds_sel_lines', element = 'vector')['file']:
-            grass.run_command('v.patch', _input = ('v_mc_lines', 'v_mc_bounds_sel_lines'), 
+        if grass.find_file(bounds_lin, element = 'vector')['file']:
+            grass.run_command('v.patch', _input = ('v_mc_lines', bounds_lin), 
                               out = 'v_mc_lines_bounds', quiet = True, stderr = nuldev)
+
+            v_mc_lines_to = 'v_mc_lines_bounds'
+        else:
+            v_mc_lines_to = 'v_mc_lines'
 
         # delete original categories and make new ones
         in_catdel = 'v_mc_lines' + '_' + 'catdel'
-        grass.run_command('v.category', _input = 'v_mc_lines', opt = 'del', 
+        grass.run_command('v.category', _input = v_mc_lines_to, opt = 'del', 
                           output = in_catdel, quiet = True, stderr = nuldev)
         in_newcats = 'v_mc_lines' + '_' + 'newcats'
         grass.run_command('v.category', _input = in_catdel, opt = 'add', 
