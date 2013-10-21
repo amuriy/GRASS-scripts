@@ -71,20 +71,13 @@
 #%  multiple: no
 #%  description: A numeric field containing attribute values from which an average value will be calculated
 #%End
-#%Flag
-#%  key: x
-#%  description: Show mean center point on the screen
-#%End
 ############################################################################
 
-# import sys
+import sys
 import os
 import glob
 import re
-# import string
-# import shutil
 import atexit
-# import math
 
 try:
     import grass.script as grass
@@ -157,7 +150,8 @@ def main():
         xmean = sum(xlist)/ifpoints
         ymean = sum(ylist)/ifpoints
         
-        print "Points' mean center: %s, %s" % (xmean, ymean)
+        if not outmap:
+            print "Points' mean center: %s, %s" % (xmean, ymean)
         
         points_append = (xmean, ymean)
         mean_centers.append(points_append)
@@ -219,7 +213,8 @@ def main():
         areas_append = (finx_areas, finy_areas)
         mean_centers.append(areas_append)
 
-        print "Areas' mean center: %s, %s" % (finx_areas, finy_areas)
+        if not outmap:
+            print "Areas' mean center: %s, %s" % (finx_areas, finy_areas)
 
 
     #### boundaries
@@ -424,8 +419,9 @@ def main():
         
         lines_append = (finx_lines,finy_lines)
         mean_centers.append(lines_append)
-        
-        print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
+
+        if not outmap:
+            print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
     
         
     #### compute final mean XY for all geometries
@@ -441,9 +437,21 @@ def main():
     finx_all = sum(all_finx)/all_count
     finy_all = sum(all_finy)/all_count
     
-    print "Mean center: %s, %s" % (finx_all, finy_all)
+    if not outmap:
+        print
+        print "Mean center: %s, %s" % (finx_all, finy_all)
     
 
+    #### Write output file if needed
+    if outmap:
+        tmp_out = tmp + '.out'
+        outf = file(tmp_out, 'w')
+        print >> outf, str(finx_all) + ',' + str(finy_all)
+        outf.close()
+        
+        grass.run_command('v.in.ascii', _input = tmp_out, output = outmap,
+                          fs = ',', quiet = True, stderr = nuldev)
+                 
 
 if __name__ == "__main__":
     options, flags = grass.parser()
