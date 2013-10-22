@@ -150,8 +150,8 @@ def main():
         xmean = sum(xlist)/ifpoints
         ymean = sum(ylist)/ifpoints
         
-        if not outmap:
-            print "Points' mean center: %s, %s" % (xmean, ymean)
+        # if not outmap:
+        #     print "Points' mean center: %s, %s" % (xmean, ymean)
         
         points_append = (xmean, ymean)
         mean_centers.append(points_append)
@@ -213,8 +213,8 @@ def main():
         areas_append = (finx_areas, finy_areas)
         mean_centers.append(areas_append)
 
-        if not outmap:
-            print "Areas' mean center: %s, %s" % (finx_areas, finy_areas)
+        # if not outmap:
+        #     print "Areas' mean center: %s, %s" % (finx_areas, finy_areas)
 
 
     #### boundaries
@@ -246,7 +246,7 @@ def main():
                           _type = 'line', quiet = True, stderr = nuldev)
 
         # patch with lines from bounds if needed
-        if grass.find_file(bounds_lin, element = 'vector')['file']:
+        if grass.find_file('v_mc_bounds_sel_lines' , element = 'vector')['file']:
             grass.run_command('v.patch', _input = ('v_mc_lines', bounds_lin), 
                               out = 'v_mc_lines_bounds', quiet = True, stderr = nuldev)
 
@@ -420,8 +420,8 @@ def main():
         lines_append = (finx_lines,finy_lines)
         mean_centers.append(lines_append)
 
-        if not outmap:
-            print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
+        # if not outmap:
+        #     print "Lines' mean center: %s, %s" % (finx_lines, finy_lines)
     
         
     #### compute final mean XY for all geometries
@@ -438,7 +438,6 @@ def main():
     finy_all = sum(all_finy)/all_count
     
     if not outmap:
-        print
         print "Mean center: %s, %s" % (finx_all, finy_all)
     
 
@@ -451,7 +450,7 @@ def main():
         
         grass.run_command('v.in.ascii', _input = tmp_out, output = outmap,
                           fs = ',', quiet = True, stderr = nuldev)
-                 
+        
 
 if __name__ == "__main__":
     options, flags = grass.parser()
