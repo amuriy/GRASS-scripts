@@ -11,7 +11,7 @@
 #               on the graphic monitor, save to vector line and update attribute table
 #               with LDM parameters.
 #
-# VERSION: 0.2 (rewritten in Python, works both in GRASS 6.4 and GRASS 7.0)
+# VERSION: 0.5 
 #
 # COPYRIGHT:    (C) 2011-2013 Alexander Muriy / GRASS Development Team
 #
@@ -151,6 +151,10 @@ def main():
 
     # setup temporary files
     tmp = grass.tempfile()
+    
+    # check for v.mc.py module
+    if grass.find_program('v.meancenter.py', ['-help']) == False:
+        grass.fatal("Module <v.meancenter.py> not found! Please set up GRASS_ADDON_PATH and restart GRASS session")
 
     # check if input file exists
     if not grass.find_file(inmap, element = 'vector')['file']:
@@ -176,34 +180,12 @@ def main():
         grass.run_command('v.db.droptable', _map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
 
     # compute mean center of lines with v.mc.py module
+    center_coords = grass.read_command('v.meancenter.py', _input = inmap, flags = 'c',
+                                quiet = True, stderr = nuldev).strip()
+    mc_x = center_coords.split(',')[0]
+    mc_y = center_coords.split(',')[1]
 
-    # test if v.mc.py exist in system path and is executable
-    
-    # run v.mc.py
-    # check GRASS_ADDON_PATH
-    
-
-    mc = 'v_ldm_vect' + '_' + 'mc'
-    grass.run_command('v.edit', _map = mc, tool = 'create', 
-                      quiet = True, stderr = nuldev)
-
-    
-    grass.run_command('v.mc.py', _input = inmap, output = mc, 
-                      quiet = True, stderr = nuldev)
-
-    p = grass.read_command('v.to.db', _map = mc, opt = 'coor',
-                           _type = 'point', flags = 'p', quiet = True).strip()
-    f = p.split('|')[1:3]
-    
-    mc_x = f[0]
-    mc_y = f[1]
-
-    center_coords = str(mc_x) + ',' + str(mc_y)
-
-    print center_coords
-
-    ####################
-
+    ### 
     inmap = 'v_ldm_vect'
 
     # count lines

@@ -71,6 +71,11 @@
 #%  multiple: no
 #%  description: A numeric field containing attribute values from which an average value will be calculated
 #%End
+#%Flag
+#%  key: c
+#%  description: Only print mean center coordinates (X,Y)
+#%End
+
 ############################################################################
 
 import sys
@@ -438,8 +443,10 @@ def main():
     finy_all = sum(all_finy)/all_count
     
     if not outmap:
-        print "Mean center: %s, %s" % (finx_all, finy_all)
-    
+        if flags['c']:
+            print "%s,%s" % (finx_all, finy_all)
+        else:
+            print "Mean center: %s, %s" % (finx_all, finy_all)
 
     #### Write output file if needed
     if outmap:
