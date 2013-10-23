@@ -180,11 +180,16 @@ def main():
     # test if v.mc.py exist in system path and is executable
     
     # run v.mc.py
+    # check GRASS_ADDON_PATH
+    
+
     mc = 'v_ldm_vect' + '_' + 'mc'
     grass.run_command('v.edit', _map = mc, tool = 'create', 
                       quiet = True, stderr = nuldev)
 
-    subprocess.Popen("./v.mc.py in=%s out=%s" % (inmap, mc), shell = True) 
+    
+    grass.run_command('v.mc.py', _input = inmap, output = mc, 
+                      quiet = True, stderr = nuldev)
 
     p = grass.read_command('v.to.db', _map = mc, opt = 'coor',
                            _type = 'point', flags = 'p', quiet = True).strip()
@@ -197,281 +202,281 @@ def main():
 
     print center_coords
 
-#     ####################
+    ####################
 
-#     inmap = 'v_ldm_vect'
+    inmap = 'v_ldm_vect'
 
-#     # count lines
-#     count = grass.vector_info_topo(inmap)['lines']
+    # count lines
+    count = grass.vector_info_topo(inmap)['lines']
 
-#     # add temp table with azimuths and lengths of lines
-#     in_cats = inmap + '_cats'    
-#     grass.run_command('v.category', _input = inmap, option = 'add', 
-#                       output = in_cats, quiet = True, stderr = nuldev)
-#     grass.run_command('v.db.addtable', _map = in_cats, table = 'tmp_tab', 
-#                       columns = 'sum_azim double, len double', quiet = True, stderr = nuldev)
-#     grass.run_command('v.db.connect', _map = in_cats, table = 'tmp_tab', 
-#                       flags = 'o', quiet = True, stderr = nuldev)
-#     grass.run_command('v.to.db', _map = in_cats, opt = 'azimuth', 
-#                       columns = 'sum_azim', units = 'radians', quiet = True, stderr = nuldev)
-#     grass.run_command('v.to.db', _map = in_cats, opt = 'length',  
-#                       columns = 'len', units = 'meters', quiet = True, stderr = nuldev)    
+    # add temp table with azimuths and lengths of lines
+    in_cats = inmap + '_cats'    
+    grass.run_command('v.category', _input = inmap, option = 'add', 
+                      output = in_cats, quiet = True, stderr = nuldev)
+    grass.run_command('v.db.addtable', _map = in_cats, table = 'tmp_tab', 
+                      columns = 'sum_azim double, len double', quiet = True, stderr = nuldev)
+    grass.run_command('v.db.connect', _map = in_cats, table = 'tmp_tab', 
+                      flags = 'o', quiet = True, stderr = nuldev)
+    grass.run_command('v.to.db', _map = in_cats, opt = 'azimuth', 
+                      columns = 'sum_azim', units = 'radians', quiet = True, stderr = nuldev)
+    grass.run_command('v.to.db', _map = in_cats, opt = 'length',  
+                      columns = 'len', units = 'meters', quiet = True, stderr = nuldev)    
 
-#     # find end azimuth
-#     p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'sum_azim', flags = 'c', quiet = True, stderr = nuldev)
-#     c = p.communicate()[0].strip().split('\n')
+    # find end azimuth
+    p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'sum_azim', flags = 'c', quiet = True, stderr = nuldev)
+    c = p.communicate()[0].strip().split('\n')
 
-#     sin = []
-#     cos = []
+    sin = []
+    cos = []
     
-#     for i in c:
-#         s1 = math.sin(float(i))
-#         c1 = math.cos(float(i))
-#         sin.append(s1)
-#         cos.append(c1)
+    for i in c:
+        s1 = math.sin(float(i))
+        c1 = math.cos(float(i))
+        sin.append(s1)
+        cos.append(c1)
 
-#     ca_sin = sum(map(float,sin))
-#     ca_cos = sum(map(float,cos))
+    ca_sin = sum(map(float,sin))
+    ca_cos = sum(map(float,cos))
     
-#     atan = math.atan2(ca_sin,ca_cos)
-#     end_azim = math.degrees(atan)
+    atan = math.atan2(ca_sin,ca_cos)
+    end_azim = math.degrees(atan)
 
-#     # find compass angle    
-#     if end_azim < 0:
-#         a2 = -(end_azim)
-#     if end_azim > 0:
-#         a2 = end_azim
-#     if (ca_sin > 0) and (ca_cos > 0):
-#         comp_angle = a2
-#     if (ca_sin > 0) and (ca_cos < 0):
-#         comp_angle = a2
-#     if (ca_sin < 0) and (ca_cos > 0):
-#         comp_angle = 360 - a2
-#     if (ca_sin < 0) and (ca_cos < 0):
-#         comp_angle = 360 - a2
+    # find compass angle    
+    if end_azim < 0:
+        a2 = -(end_azim)
+    if end_azim > 0:
+        a2 = end_azim
+    if (ca_sin > 0) and (ca_cos > 0):
+        comp_angle = a2
+    if (ca_sin > 0) and (ca_cos < 0):
+        comp_angle = a2
+    if (ca_sin < 0) and (ca_cos > 0):
+        comp_angle = 360 - a2
+    if (ca_sin < 0) and (ca_cos < 0):
+        comp_angle = 360 - a2
 
-#     # find LDM
-#     if end_azim < 0:
-#         a2 = -(end_azim)
-#     if end_azim > 0:
-#         a2 = end_azim
-#     if (ca_sin > 0) and (ca_cos > 0):
-#         ldm = 90 - a2
-#     if (ca_sin > 0) and (ca_cos < 0):
-#         ldm = 450 - a2
-#     if (ca_sin < 0) and (ca_cos > 0):
-#         ldm = 90 + a2
-#     if (ca_sin < 0) and (ca_cos < 0):
-#         ldm = 90 + a2
+    # find LDM
+    if end_azim < 0:
+        a2 = -(end_azim)
+    if end_azim > 0:
+        a2 = end_azim
+    if (ca_sin > 0) and (ca_cos > 0):
+        ldm = 90 - a2
+    if (ca_sin > 0) and (ca_cos < 0):
+        ldm = 450 - a2
+    if (ca_sin < 0) and (ca_cos > 0):
+        ldm = 90 + a2
+    if (ca_sin < 0) and (ca_cos < 0):
+        ldm = 90 + a2
 
-#     # find circular variance
-#     sin_pow = math.pow(ca_sin,2) 
-#     cos_pow = math.pow(ca_cos,2) 
+    # find circular variance
+    sin_pow = math.pow(ca_sin,2) 
+    cos_pow = math.pow(ca_cos,2) 
 
-#     circ_var = 1-(math.sqrt(sin_pow+cos_pow))/count
+    circ_var = 1-(math.sqrt(sin_pow+cos_pow))/count
 
-#     # find start/end points of "mean" line
-#     end_azim_dms = decimal2dms(end_azim)
+    # find start/end points of "mean" line
+    end_azim_dms = decimal2dms(end_azim)
 
-#     # if end_azim < 0:
-#     #     end_azim_dms = '-' + (str(end_azim_dms))
+    # if end_azim < 0:
+    #     end_azim_dms = '-' + (str(end_azim_dms))
 
-#     start_azim = 180 - end_azim
-#     start_azim_dms = decimal2dms(start_azim)
+    start_azim = 180 - end_azim
+    start_azim_dms = decimal2dms(start_azim)
     
-#     p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'len',
-#                            flags = 'c', quiet = True, stderr = nuldev)
-#     c = p.communicate()[0].strip().split('\n')
+    p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'len',
+                           flags = 'c', quiet = True, stderr = nuldev)
+    c = p.communicate()[0].strip().split('\n')
 
-#     mean_length = sum(map(float,c))/len(c)
-#     half_length = float(mean_length)/2
+    mean_length = sum(map(float,c))/len(c)
+    half_length = float(mean_length)/2
 
-#     tmp1 = tmp + '.inf'
-#     inf1 = file(tmp1, 'w')
-#     print >> inf1, 'N ' + str(end_azim_dms) + ' E ' + str(half_length)
-#     inf1.close()
+    tmp1 = tmp + '.inf'
+    inf1 = file(tmp1, 'w')
+    print >> inf1, 'N ' + str(end_azim_dms) + ' E ' + str(half_length)
+    inf1.close()
     
-#     end_coords = grass.read_command('m.cogo', _input = tmp1, output = '-',
-#                                     coord = center_coords, quiet = True).strip()
+    end_coords = grass.read_command('m.cogo', _input = tmp1, output = '-',
+                                    coord = center_coords, quiet = True).strip()
 
-#     tmp2 = tmp + '.inf2'
-#     inf2 = file(tmp2, 'w')
-#     print >> inf2, 'N ' + str(start_azim_dms) + ' W ' + str(half_length)
-#     inf2.close()
+    tmp2 = tmp + '.inf2'
+    inf2 = file(tmp2, 'w')
+    print >> inf2, 'N ' + str(start_azim_dms) + ' W ' + str(half_length)
+    inf2.close()
 
-#     start_coords = grass.read_command('m.cogo', _input = tmp2, output = '-',
-#                                       coord = center_coords, quiet = True).strip()
+    start_coords = grass.read_command('m.cogo', _input = tmp2, output = '-',
+                                      coord = center_coords, quiet = True).strip()
 
-#     # make "arrowhead" symbol
-#     if flags['x'] or graph:
-#         tmp3 = tmp + '.arrowhead_1'
-#         outf3 = file(tmp3, 'w')
+    # make "arrowhead" symbol
+    if flags['x'] or graph:
+        tmp3 = tmp + '.arrowhead_1'
+        outf3 = file(tmp3, 'w')
 
-#         if ldm_type == 'direct':
-#             t1 = """VERSION 1.0
-# BOX -0.5 -0.5 0.5 0.5
-# POLYGON
-#   RING
-#   FCOLOR NONE
-#     LINE
-#       0 0
-#       0.3 -1
-#     END
-#   END
-# POLYGON
-#   RING
-#   FCOLOR NONE
-#     LINE
-#       0 0
-#       -0.3 -1
-#     END
-#   END
-# END
-# """
-#             outf3.write(t1)
-#             outf3.close()
+        if ldm_type == 'direct':
+            t1 = """VERSION 1.0
+BOX -0.5 -0.5 0.5 0.5
+POLYGON
+  RING
+  FCOLOR NONE
+    LINE
+      0 0
+      0.3 -1
+    END
+  END
+POLYGON
+  RING
+  FCOLOR NONE
+    LINE
+      0 0
+      -0.3 -1
+    END
+  END
+END
+"""
+            outf3.write(t1)
+            outf3.close()
     
-#             gisdbase = grass.gisenv()['GISDBASE']
-#             location = grass.gisenv()['LOCATION_NAME']
-#             mapset = grass.gisenv()['MAPSET']
-#             symbols_dir = os.path.join(gisdbase, location, mapset, 'symbol', 'arrows')
-#             symbol = os.path.join(symbols_dir, 'arrowhead_1')
+            gisdbase = grass.gisenv()['GISDBASE']
+            location = grass.gisenv()['LOCATION_NAME']
+            mapset = grass.gisenv()['MAPSET']
+            symbols_dir = os.path.join(gisdbase, location, mapset, 'symbol', 'arrows')
+            symbol = os.path.join(symbols_dir, 'arrowhead_1')
     
-#             if not os.path.exists(symbols_dir):
-#                 try:
-#                     os.makedirs(symbols_dir)
-#                 except OSError:
-#                     pass
+            if not os.path.exists(symbols_dir):
+                try:
+                    os.makedirs(symbols_dir)
+                except OSError:
+                    pass
         
-#             if not os.path.isfile(symbol):
-#                 shutil.copyfile(tmp3, symbol)
+            if not os.path.isfile(symbol):
+                shutil.copyfile(tmp3, symbol)
 
     
-#         # write LDM graph file and optionally display line of LDM with an arrow
-#     tmp4 = tmp + '.ldm'
-#     outf4 = file(tmp4, 'w')
+        # write LDM graph file and optionally display line of LDM with an arrow
+    tmp4 = tmp + '.ldm'
+    outf4 = file(tmp4, 'w')
     
-#     if grass_version == '6':
-#         arrow_size = int(width) * 6
-#     elif grass_version == '7':
-#         arrow_size = int(width) * 1.4
+    if grass_version == '6':
+        arrow_size = int(width) * 6
+    elif grass_version == '7':
+        arrow_size = int(width) * 1.4
 
-#     arrow_azim = 360 - float(end_azim)
+    arrow_azim = 360 - float(end_azim)
 
-#     if ldm_type == 'direct':
-#         t2 = string.Template("""
-# move $start_coords
-# width $width
-# color $color
-# draw $end_coords
+    if ldm_type == 'direct':
+        t2 = string.Template("""
+move $start_coords
+width $width
+color $color
+draw $end_coords
 
-# rotation $arrow_azim
-# width $width
-# symbol $symbol_s $arrow_size $end_coords $color
-# """)    
-#         s2 = t2.substitute(start_coords = start_coords, width = width, color = color,
-#                        end_coords = end_coords, arrow_azim = arrow_azim,
-#                        symbol_s = "arrows/arrowhead_1", arrow_size = arrow_size)
-#     else:
-#         t2 = string.Template("""
-# move $start_coords
-# width $width
-# color $color
-# draw $end_coords
-# """)    
-#         s2 = t2.substitute(start_coords = start_coords, width = width, color = color,
-#                        end_coords = end_coords)
+rotation $arrow_azim
+width $width
+symbol $symbol_s $arrow_size $end_coords $color
+""")    
+        s2 = t2.substitute(start_coords = start_coords, width = width, color = color,
+                       end_coords = end_coords, arrow_azim = arrow_azim,
+                       symbol_s = "arrows/arrowhead_1", arrow_size = arrow_size)
+    else:
+        t2 = string.Template("""
+move $start_coords
+width $width
+color $color
+draw $end_coords
+""")    
+        s2 = t2.substitute(start_coords = start_coords, width = width, color = color,
+                       end_coords = end_coords)
 
-#     outf4.write(s2)
-#     outf4.close()
+    outf4.write(s2)
+    outf4.close()
 
-#     if graph:
-#         shutil.copyfile(tmp4, graph)
-
-
-
-#     if flags['x']:
-#         if graph:
-#             grass.run_command('d.graph', _input = graph, flags = 'm', quiet = True, stderr = nuldev)
-#         else:
-#             grass.run_command('d.graph', _input = tmp4, flags = 'm', quiet = True, stderr = nuldev)
+    if graph:
+        shutil.copyfile(tmp4, graph)
 
 
-#     # save LDM line to vector if option "output" set  
-#     if output:
-#         tmp5 = tmp + '.line'
-#         outf5 = file(tmp5, 'w')
 
-#         print >> outf5, str(start_coords)
-#         print >> outf5, str(end_coords)
+    if flags['x']:
+        if graph:
+            grass.run_command('d.graph', _input = graph, flags = 'm', quiet = True, stderr = nuldev)
+        else:
+            grass.run_command('d.graph', _input = tmp4, flags = 'm', quiet = True, stderr = nuldev)
 
-#         outf5.close()
 
-#         if grass_version == '6':
-#             grass.run_command('v.in.lines', _input = tmp5, output = output,
-#                               fs = " ", overwrite = True, quiet = True)
-#         elif grass_version == '7':
-#             grass.run_command('v.in.lines', _input = tmp5, output = output,
-#                               separator = " ", overwrite = True, quiet = True)
+    # save LDM line to vector if option "output" set  
+    if output:
+        tmp5 = tmp + '.line'
+        outf5 = file(tmp5, 'w')
 
-#         out_cats = output + '_cats'
-#         grass.run_command('v.category', _input = output, option = 'add', 
-#                           output = out_cats, quiet = True, stderr = nuldev)
-#         grass.run_command('g.rename', vect = (out_cats,output), 
-#                           overwrite = True, quiet = True, stderr = nuldev)
+        print >> outf5, str(start_coords)
+        print >> outf5, str(end_coords)
+
+        outf5.close()
+
+        if grass_version == '6':
+            grass.run_command('v.in.lines', _input = tmp5, output = output,
+                              fs = " ", overwrite = True, quiet = True)
+        elif grass_version == '7':
+            grass.run_command('v.in.lines', _input = tmp5, output = output,
+                              separator = " ", overwrite = True, quiet = True)
+
+        out_cats = output + '_cats'
+        grass.run_command('v.category', _input = output, option = 'add', 
+                          output = out_cats, quiet = True, stderr = nuldev)
+        grass.run_command('g.rename', vect = (out_cats,output), 
+                          overwrite = True, quiet = True, stderr = nuldev)
         
-#         if circ_var:
-#             col = 'CompassA double,DirMean double,CirVar double,AveX double,AveY double,AveLen double'
-#         else:
-#             col = 'CompassA double,DirMean double,AveX double,AveY double,AveLen double'
+        if circ_var:
+            col = 'CompassA double,DirMean double,CirVar double,AveX double,AveY double,AveLen double'
+        else:
+            col = 'CompassA double,DirMean double,AveX double,AveY double,AveLen double'
             
-#         grass.run_command('v.db.addtable', _map = output, columns = col, quiet = True, stderr = nuldev)
+        grass.run_command('v.db.addtable', _map = output, columns = col, quiet = True, stderr = nuldev)
 
-#         tmp6 = tmp + '.sql'
-#         outf6 = file(tmp6, 'w')
+        tmp6 = tmp + '.sql'
+        outf6 = file(tmp6, 'w')
                 
-#         t3 = string.Template("""
-# UPDATE $output SET CompassA = $comp_angle;
-# UPDATE $output SET DirMean = $ldm;
-# UPDATE $output SET AveX = $mc_x;
-# UPDATE $output SET AveY = $mc_y;
-# UPDATE $output SET AveLen = $mean_length;
-# """)
-#         s3 = t3.substitute(output = output, comp_angle = ("%0.3f" % comp_angle),
-#                            ldm = ("%0.3f" % ldm), mc_x = ("%0.3f" % float(mc_x)),
-#                            mc_y = ("%0.3f" % float(mc_y)), mean_length = ("%0.3f" % mean_length))
-#         outf6.write(s3)
+        t3 = string.Template("""
+UPDATE $output SET CompassA = $comp_angle;
+UPDATE $output SET DirMean = $ldm;
+UPDATE $output SET AveX = $mc_x;
+UPDATE $output SET AveY = $mc_y;
+UPDATE $output SET AveLen = $mean_length;
+""")
+        s3 = t3.substitute(output = output, comp_angle = ("%0.3f" % comp_angle),
+                           ldm = ("%0.3f" % ldm), mc_x = ("%0.3f" % float(mc_x)),
+                           mc_y = ("%0.3f" % float(mc_y)), mean_length = ("%0.3f" % mean_length))
+        outf6.write(s3)
 
-#         if circ_var:
-#             print >> outf6, "UPDATE %s SET CirVar = %0.3f;" % (output, circ_var)
+        if circ_var:
+            print >> outf6, "UPDATE %s SET CirVar = %0.3f;" % (output, circ_var)
 
-#         outf6.close()
+        outf6.close()
 
-#         grass.run_command('db.execute', input = tmp6, quiet = True, stderr = nuldev)
+        grass.run_command('db.execute', input = tmp6, quiet = True, stderr = nuldev)
 
 
-#     # print LDM parameters to stdout (with <-g> flag in shell style):
-#     print_out = ['Compass Angle', 'Directional Mean', 'Average Center', 'Average Length']
-#     if circ_var:
-#         print_out.append('Circular Variance')
+    # print LDM parameters to stdout (with <-g> flag in shell style):
+    print_out = ['Compass Angle', 'Directional Mean', 'Average Center', 'Average Length']
+    if circ_var:
+        print_out.append('Circular Variance')
         
-#     print_shell = ['compass_angle', 'directional_mean', 'average_center',
-#                    'average_length', 'circular_variance']
-#     if circ_var:
-#         print_shell.append('circular_variance')
+    print_shell = ['compass_angle', 'directional_mean', 'average_center',
+                   'average_length', 'circular_variance']
+    if circ_var:
+        print_shell.append('circular_variance')
         
-#     print_vars = ["%0.3f" % comp_angle, "%0.3f" % ldm,
-#                   mc_x + ',' + mc_y,
-#                   "%0.3f" % mean_length]
-#     if circ_var:
-#         print_vars.append("%0.3f" % circ_var)
+    print_vars = ["%0.3f" % comp_angle, "%0.3f" % ldm,
+                  mc_x + ',' + mc_y,
+                  "%0.3f" % mean_length]
+    if circ_var:
+        print_vars.append("%0.3f" % circ_var)
 
-#     if flags['g']:
-#         for i,j in zip(print_shell, print_vars):
-#             print "%s=%s" % (i, j)
-#     else:
-#         for i,j in zip(print_out, print_vars):
-#             print "%s: %s" % (i, j)
+    if flags['g']:
+        for i,j in zip(print_shell, print_vars):
+            print "%s=%s" % (i, j)
+    else:
+        for i,j in zip(print_out, print_vars):
+            print "%s: %s" % (i, j)
 
 
 
