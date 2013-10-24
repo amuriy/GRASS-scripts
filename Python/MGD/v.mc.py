@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 ############################################################################
 #
-# MODULE:       v.meancenter
+# MODULE:       v.mc
 # AUTHOR(S):    Alexander Muriy
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
