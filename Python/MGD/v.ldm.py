@@ -31,7 +31,7 @@
 #%  keywords: display, graphics, vector, symbology
 #%End
 #%Option
-#%  key: map
+#%  key: input
 #%  type: string
 #%  required: yes
 #%  multiple: no
@@ -112,7 +112,7 @@ except:
             sys.exit(1)
         
 def cleanup():
-    inmap = options['map']
+    inmap = options['input']
     nuldev = file(os.devnull, 'w')
     grass.try_remove(tmp)
     for f in glob.glob(tmp + '*'):
@@ -135,7 +135,7 @@ def decimal2dms(dec_deg):
     return dms
 
 def main():
-    inmap = options['map']
+    inmap = options['input']
     output = options['output']
     width = options['width']
     color = options['color']
@@ -152,6 +152,10 @@ def main():
     # setup temporary files
     tmp = grass.tempfile()
     
+    # check for LatLong location
+    if grass.locn_is_latlong() == True:
+        grass.fatal("Module works only in locations with cartesian coordinate system")
+
     # check for v.mc.py module
     if grass.find_program('v.meancenter.py', ['-help']) == False:
         grass.fatal("Module <v.meancenter.py> not found! Please set up GRASS_ADDON_PATH and restart GRASS session")
@@ -163,7 +167,7 @@ def main():
     # check for lines
     iflines = grass.vector_info_topo(inmap)['lines']
     if iflines == 0:
-        grass.fatal(_("<%s> does not exist.") % inmap)
+        grass.fatal(_("Map <%s> has no lines.") % inmap)
     
     # check for options
     if flags['x']:

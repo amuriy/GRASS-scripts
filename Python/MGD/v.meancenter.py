@@ -115,6 +115,10 @@ def main():
     # setup temporary files
     tmp = grass.tempfile()
 
+    # check for LatLong location
+    if grass.locn_is_latlong() == True:
+        grass.fatal("Module works only in locations with cartesian coordinate system")
+
     # check if input file exists
     if not grass.find_file(inmap, element = 'vector')['file']:
         grass.fatal(_("<%s> does not exist.") % inmap)
@@ -130,10 +134,16 @@ def main():
     if ifpoints == 0 and iflines == 0 and ifbounds == 0 and ifareas == 0:
         grass.fatal(_("<%s> map is empty.") % inmap)
 
-    ### extract different geometries to different maps and compute mean center
-
     mean_centers = []
 
+    # check for categories for input map
+    incats = grass.read_command('v.category', _input = inmap, opt = 'print', 
+                       quiet = True, stderr = nuldev)
+    if not incats:
+        grass.fatal(_("<%s> map have no categories of vector features. Please add categories to work with the module.") % inmap)
+    
+    
+    ### extract different geometries to different maps and compute mean center
     #### points
     if ifpoints > 0:
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_points', 
@@ -227,20 +237,23 @@ def main():
         grass.run_command('v.extract', _input = inmap, out = 'v_mc_bounds', 
                           _type = 'boundary', quiet = True, stderr = nuldev)
     
-        if ifcent > 0:
+        if ifcent > 0 and ifcent == ifareas:
             bounds_sel = 'v_mc_bounds' + '_' + 'sel'
             grass.run_command('v.select', ainput = 'v_mc_bounds', binput = 'v_mc_areas', 
                               out = bounds_sel, flags = 'r', quiet = True, stderr = nuldev)
+            bounds_lin = bounds_sel + '_' + 'lines'
+            grass.run_command('v.type', _input = bounds_sel, out = bounds_lin,
+                              _type = ('boundary', 'line'), quiet = True, stderr = nuldev)
+
         else:
             bounds_sel = 'v_mc_bounds'
-
-        bounds_lin = bounds_sel + '_' + 'lines'
-        grass.run_command('v.type', _input = bounds_sel, out = bounds_lin,
-                          _type = ('boundary', 'line'), quiet = True, stderr = nuldev)
-
+            bounds_lin = bounds_sel + '_' + 'lines'
+            grass.run_command('v.type', _input = bounds_sel, out = bounds_lin,
+                              _type = ('boundary', 'line'), quiet = True, stderr = nuldev)
 
     #### lines
-    if iflines == 0 and grass.find_file(bounds_lin, element = 'vector')['file']:
+    find_lin = grass.find_file('v_mc_bounds_sel_lines', element = 'vector')['file'] or grass.find_file('v_mc_bounds_lines', element = 'vector')['file']
+    if iflines == 0 and find_lin:
         inmap = bounds_lin
         geom =  grass.vector_info_topo(bounds_lin)
         iflines = geom.get('lines')
@@ -251,7 +264,7 @@ def main():
                           _type = 'line', quiet = True, stderr = nuldev)
 
         # patch with lines from bounds if needed
-        if grass.find_file('v_mc_bounds_sel_lines' , element = 'vector')['file']:
+        if grass.find_file('v_mc_bounds_sel_lines', element = 'vector')['file'] or grass.find_file('v_mc_bounds_lines', element = 'vector')['file']:
             grass.run_command('v.patch', _input = ('v_mc_lines', bounds_lin), 
                               out = 'v_mc_lines_bounds', quiet = True, stderr = nuldev)
 
@@ -361,7 +374,6 @@ def main():
         out_pts = out_newcats + '_' + 'pts'
         grass.run_command('v.segment', _input = out_newcats, output = out_pts,
                           _file = tmp_seg, quiet = True, stderr = nuldev)
-
         
         coor = grass.pipe_command('v.to.db', _map = out_pts, opt = 'coor',  
                                   _type = 'point', flags = 'p', quiet = True)
