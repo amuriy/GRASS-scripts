@@ -157,8 +157,8 @@ def main():
         grass.fatal("Module works only in locations with cartesian coordinate system")
 
     # check for v.mc.py module
-    if grass.find_program('v.meancenter.py', ['-help']) == False:
-        grass.fatal("Module <v.meancenter.py> not found! Please set up GRASS_ADDON_PATH and restart GRASS session")
+    if grass.find_program('v.mc.py', ['-help']) == False:
+        grass.fatal("Module <v.mc.py> not found! Please set up GRASS_ADDON_PATH and restart GRASS session")
 
     # check if input file exists
     if not grass.find_file(inmap, element = 'vector')['file']:
@@ -184,7 +184,7 @@ def main():
         grass.run_command('v.db.droptable', _map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
 
     # compute mean center of lines with v.mc.py module
-    center_coords = grass.read_command('v.meancenter.py', _input = inmap, flags = 'c',
+    center_coords = grass.read_command('v.mc.py', _input = inmap, flags = 'c',
                                 quiet = True, stderr = nuldev).strip()
     mc_x = center_coords.split(',')[0]
     mc_y = center_coords.split(',')[1]
