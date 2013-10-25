@@ -29,7 +29,7 @@
 #
 ############################################################################
 #%Module 
-#%  description: Compute "Mean Center" — the geographic center (or the center of concentration) for a set of vector features.
+#%  description: Compute "Mean Center" - the geographic center (or the center of concentration) for a set of vector features.
 #%  keywords: display, graphics, vector, symbology
 #%End
 #%Option
