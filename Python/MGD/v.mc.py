@@ -7,7 +7,7 @@
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
 #
-# PURPOSE:      Compute "Mean Center" — the geographic center (or the center of concentration) for a set of vector features.
+# PURPOSE:      Compute "Mean Center" - the geographic center (or the center of concentration) for a set of vector features.
 #
 # TODO: 
 # - Calculate also the mean center for a 3rd dimension if vector map is 3D
