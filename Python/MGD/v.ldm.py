@@ -184,10 +184,12 @@ def main():
         grass.run_command('v.db.droptable', _map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
 
     # compute mean center of lines with v.mc.py module
-    center_coords = grass.read_command('v.mc.py', _input = inmap, flags = 'c',
+    center_coords = grass.read_command('v.mc.py', _input = inmap,
                                 quiet = True, stderr = nuldev).strip()
-    mc_x = center_coords.split(',')[0]
-    mc_y = center_coords.split(',')[1]
+    mc_x = center_coords.split(' ')[0]
+    mc_y = center_coords.split(' ')[1]
+
+    center_coords = str(mc_x) + ',' + str(mc_y)
 
     ### 
     inmap = 'v_ldm_vect'
