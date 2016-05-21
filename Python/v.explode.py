@@ -9,7 +9,7 @@
 #
 # PURPOSE:      "Explode" vector objects, splitting them to separate lines
 #
-# COPYRIGHT:    (C) 2013 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2016 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ except:
 
 def cleanup():
     nuldev = file(os.devnull, 'w')
-    grass.run_command('g.mremove', vect = 'v_explode*', flags = 'f',
+    grass.run_command('g.remove', type_ = 'vect', pattern = 'v_explode*', flags = 'f',
                       quiet = True, stderr = nuldev)
 
 def main():
@@ -78,12 +78,12 @@ def main():
 
     
     out_split = 'v_explode' + '_' + 'split'
-    grass.run_command('v.split', _input = inmap, vertices = 2, 
+    grass.run_command('v.split', input_ = inmap, vertices = 2, 
                           out = out_split, quiet = True, stderr = nuldev)
     out_catdel = 'v_explode' + '_' + 'catdel'
-    grass.run_command('v.category', _input = out_split, opt = 'del', 
+    grass.run_command('v.category', input_ = out_split, opt = 'del', 
                       output = out_catdel, quiet = True, stderr = nuldev)
-    grass.run_command('v.category', _input = out_catdel, opt = 'add', 
+    grass.run_command('v.category', input_ = out_catdel, opt = 'add', 
                       output = outmap, quiet = True, stderr = nuldev)
     
 
