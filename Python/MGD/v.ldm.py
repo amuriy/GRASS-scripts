@@ -7,13 +7,11 @@
 #               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
 #
-# PURPOSE:      Compute "Linear Directional Mean" of vector lines, display arrow 
-#               on the graphic monitor, save to vector line and update attribute table
-#               with LDM parameters.
+# PURPOSE:      Computes "Linear Directional Mean" of vector lines, optionally displays arrow 
+#               on the graphic monitor, saves to vector line and update attribute table
+#               with the LDM statistics.
 #
-# VERSION: 0.5 
-#
-# COPYRIGHT:    (C) 2011-2013 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2011,2013,2016 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -28,7 +26,7 @@
 ############################################################################
 #%Module 
 #%  description: Compute "Linear Directional Mean" of vector lines, displays arrow on the graphic monitor, save to vector line and update attribute table with LDM parameters. 
-#%  keywords: display, graphics, vector, symbology
+#%  keywords: vector, statistics, graphics
 #%End
 #%Option
 #%  key: input
@@ -50,12 +48,11 @@
 #%  answer: orient
 #%End
 #%Option
-#%  key: output
+#%  key: ldm
 #%  type: string
 #%  required: no
-#%  multiple: no
 #%  key_desc: name
-#%  description: Name of output vector map 
+#%  description: Name of output LDM vector map
 #%  gisprompt: new,vector,vector
 #%End
 #%Option
@@ -73,14 +70,10 @@
 #%  answer: black
 #%  gisprompt: old_color,color,color
 #%End
-#%Option
+#%Option G_OPT_F_OUTPUT
 #%  key: graph
-#%  type: string
 #%  required: no
-#%  multiple: no
-#%  key_desc: name
 #%  description: Output file to save LDM graphics
-#%  gisprompt: new_file,file,output
 #%End
 #%Flag
 #%  key: x
@@ -110,22 +103,12 @@ except:
         if not os.environ.has_key("GISBASE"):
             print "You must be in GRASS GIS to run this program."
             sys.exit(1)
-        
-def cleanup():
-    inmap = options['input']
-    nuldev = file(os.devnull, 'w')
-    grass.try_remove(tmp)
-    for f in glob.glob(tmp + '*'):
-        grass.try_remove(f)
-    grass.run_command('g.mremove', vect = 'v_ldm_vect*', flags = 'f',
-                      quiet = True, stderr = nuldev)
-    grass.run_command('g.remove', vect = 'v_ldm_vect_cats', flags = 'f',
-                      quiet = True, stderr = nuldev)
-    grass.run_command('g.remove', vect = 'v_ldm_vect_mc', flags = 'f',
-                      quiet = True, stderr = nuldev)
-    grass.run_command('v.db.droptable', _map = inmap, 
-                      table = 'tmp_tab', flags = 'f', quiet = True, stderr = nuldev)
 
+def cleanup():
+    nuldev = file(os.devnull, 'w')
+    grass.run_command('g.remove', type_ = 'vect', pat = 'v_ldm_vect*', flags = 'f',
+                      quiet = True, stderr = nuldev)
+    
 def decimal2dms(dec_deg):
     deg = int(dec_deg)
     dec_min = abs(dec_deg - deg) * 60
@@ -134,9 +117,22 @@ def decimal2dms(dec_deg):
     dms = str(deg) + ':' + str(min) + ':' + str(sec)
     return dms
 
+
+# check for v.mc module
+def check_progs():
+    found_missing = False
+    if not grass.find_program('v.mc.py'):
+        found_missing = True
+        grass.warning(_("'%s' required. Please install '%s' first \n using 'g.extension %s' or check \n PATH and GRASS_ADDON_PATH variables") % ('v.mc.py','v.mc.py','v.mc.py'))
+        if found_missing:
+            grass.fatal(_("An ERROR occurred running <v.ldm.py>"))
+
+
 def main():
+    check_progs()
+    
     inmap = options['input']
-    output = options['output']
+    output = options['ldm']
     width = options['width']
     color = options['color']
     graph = options['graph']
@@ -148,6 +144,8 @@ def main():
     nuldev = None
 
     grass_version = grass.version()['version'][0]
+    if grass_version != '7':
+        grass.fatal(_("Sorry, this script works in GRASS 7.* only"))
 
     # setup temporary files
     tmp = grass.tempfile()
@@ -156,9 +154,6 @@ def main():
     if grass.locn_is_latlong() == True:
         grass.fatal("Module works only in locations with cartesian coordinate system")
 
-    # check for v.mc.py module
-    if grass.find_program('v.mc.py', ['-help']) == False:
-        grass.fatal("Module <v.mc.py> not found! Please set up GRASS_ADDON_PATH and restart GRASS session")
 
     # check if input file exists
     if not grass.find_file(inmap, element = 'vector')['file']:
@@ -169,22 +164,25 @@ def main():
     if iflines == 0:
         grass.fatal(_("Map <%s> has no lines.") % inmap)
     
-    # check for options
+
+    # diplay options 
     if flags['x']:
         env = grass.gisenv()
         mon = env.get('MONITOR', None)
         if not mon:
-            grass.fatal(_("No monitor selected. Run <d.mon> to select monitor."))
+            if not graph:
+                grass.fatal(_("Please choose \"graph\" output file with LDM graphics or not use flag \"x\""))
 
+    
     ####### DO IT #######
     # copy input vector map and drop table
     grass.run_command('g.copy', vect = (inmap, 'v_ldm_vect'), quiet = True, stderr = nuldev)
-    db = grass.vector_db('v_ldm_vect', quiet = True, stderr = nuldev) 
+    db = grass.vector_db('v_ldm_vect')
     if db != {}:
-        grass.run_command('v.db.droptable', _map = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
+        grass.run_command('v.db.droptable', map_ = 'v_ldm_vect', flags = 'f', quiet = True, stderr = nuldev)
 
     # compute mean center of lines with v.mc.py module
-    center_coords = grass.read_command('v.mc.py', _input = inmap,
+    center_coords = grass.read_command('v.mc.py', input_ = inmap, type_ = 'line',
                                 quiet = True, stderr = nuldev).strip()
     mc_x = center_coords.split(' ')[0]
     mc_y = center_coords.split(' ')[1]
@@ -199,19 +197,19 @@ def main():
 
     # add temp table with azimuths and lengths of lines
     in_cats = inmap + '_cats'    
-    grass.run_command('v.category', _input = inmap, option = 'add', 
+    grass.run_command('v.category', input_ = inmap, option = 'add', 
                       output = in_cats, quiet = True, stderr = nuldev)
-    grass.run_command('v.db.addtable', _map = in_cats, table = 'tmp_tab', 
+    grass.run_command('v.db.addtable', map_ = in_cats, table = 'tmp_tab', 
                       columns = 'sum_azim double, len double', quiet = True, stderr = nuldev)
-    grass.run_command('v.db.connect', _map = in_cats, table = 'tmp_tab', 
+    grass.run_command('v.db.connect', map_ = in_cats, table = 'tmp_tab', 
                       flags = 'o', quiet = True, stderr = nuldev)
-    grass.run_command('v.to.db', _map = in_cats, opt = 'azimuth', 
+    grass.run_command('v.to.db', map_ = in_cats, opt = 'azimuth', 
                       columns = 'sum_azim', units = 'radians', quiet = True, stderr = nuldev)
-    grass.run_command('v.to.db', _map = in_cats, opt = 'length',  
+    grass.run_command('v.to.db', map_ = in_cats, opt = 'length',  
                       columns = 'len', units = 'meters', quiet = True, stderr = nuldev)    
 
     # find end azimuth
-    p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'sum_azim', flags = 'c', quiet = True, stderr = nuldev)
+    p = grass.pipe_command('v.db.select', map_ = in_cats, columns = 'sum_azim', flags = 'c', quiet = True, stderr = nuldev)
     c = p.communicate()[0].strip().split('\n')
 
     sin = []
@@ -272,7 +270,7 @@ def main():
     start_azim = 180 - end_azim
     start_azim_dms = decimal2dms(start_azim)
     
-    p = grass.pipe_command('v.db.select', _map = in_cats, columns = 'len',
+    p = grass.pipe_command('v.db.select', map_ = in_cats, columns = 'len',
                            flags = 'c', quiet = True, stderr = nuldev)
     c = p.communicate()[0].strip().split('\n')
 
@@ -284,7 +282,7 @@ def main():
     print >> inf1, 'N ' + str(end_azim_dms) + ' E ' + str(half_length)
     inf1.close()
     
-    end_coords = grass.read_command('m.cogo', _input = tmp1, output = '-',
+    end_coords = grass.read_command('m.cogo', input_ = tmp1, output = '-',
                                     coord = center_coords, quiet = True).strip()
 
     tmp2 = tmp + '.inf2'
@@ -292,7 +290,7 @@ def main():
     print >> inf2, 'N ' + str(start_azim_dms) + ' W ' + str(half_length)
     inf2.close()
 
-    start_coords = grass.read_command('m.cogo', _input = tmp2, output = '-',
+    start_coords = grass.read_command('m.cogo', input_ = tmp2, output = '-',
                                       coord = center_coords, quiet = True).strip()
 
     # make "arrowhead" symbol
@@ -338,17 +336,13 @@ END
         
             if not os.path.isfile(symbol):
                 shutil.copyfile(tmp3, symbol)
-
+        
     
         # write LDM graph file and optionally display line of LDM with an arrow
     tmp4 = tmp + '.ldm'
     outf4 = file(tmp4, 'w')
     
-    if grass_version == '6':
-        arrow_size = int(width) * 6
-    elif grass_version == '7':
-        arrow_size = int(width) * 1.4
-
+    arrow_size = int(width) * 1.4
     arrow_azim = 360 - float(end_azim)
 
     if ldm_type == 'direct':
@@ -379,15 +373,8 @@ draw $end_coords
     outf4.close()
 
     if graph:
-        shutil.copyfile(tmp4, graph)
+        shutil.copy(tmp4, graph)
 
-
-
-    if flags['x']:
-        if graph:
-            grass.run_command('d.graph', _input = graph, flags = 'm', quiet = True, stderr = nuldev)
-        else:
-            grass.run_command('d.graph', _input = tmp4, flags = 'm', quiet = True, stderr = nuldev)
 
 
     # save LDM line to vector if option "output" set  
@@ -400,35 +387,31 @@ draw $end_coords
 
         outf5.close()
 
-        if grass_version == '6':
-            grass.run_command('v.in.lines', _input = tmp5, output = output,
-                              fs = " ", overwrite = True, quiet = True)
-        elif grass_version == '7':
-            grass.run_command('v.in.lines', _input = tmp5, output = output,
+        grass.run_command('v.in.lines', input_ = tmp5, output = output,
                               separator = " ", overwrite = True, quiet = True)
 
         out_cats = output + '_cats'
-        grass.run_command('v.category', _input = output, option = 'add', 
+        grass.run_command('v.category', input_ = output, option = 'add', 
                           output = out_cats, quiet = True, stderr = nuldev)
         grass.run_command('g.rename', vect = (out_cats,output), 
                           overwrite = True, quiet = True, stderr = nuldev)
         
         if circ_var:
-            col = 'CompassA double,DirMean double,CirVar double,AveX double,AveY double,AveLen double'
+            col = 'comp_angle double,dir_mean double,cir_var double,ave_x double,ave_y double,ave_len double'
         else:
-            col = 'CompassA double,DirMean double,AveX double,AveY double,AveLen double'
-            
-        grass.run_command('v.db.addtable', _map = output, columns = col, quiet = True, stderr = nuldev)
+            col = 'comp_angle double,dir_mean double,ave_x double,ave_y double,ave_len double'
+                        
+        grass.run_command('v.db.addtable', map_ = output, columns = col, quiet = True, stderr = nuldev)
 
         tmp6 = tmp + '.sql'
         outf6 = file(tmp6, 'w')
                 
         t3 = string.Template("""
-UPDATE $output SET CompassA = $comp_angle;
-UPDATE $output SET DirMean = $ldm;
-UPDATE $output SET AveX = $mc_x;
-UPDATE $output SET AveY = $mc_y;
-UPDATE $output SET AveLen = $mean_length;
+UPDATE $output SET comp_angle = $comp_angle;
+UPDATE $output SET dir_mean = $ldm;
+UPDATE $output SET ave_x = $mc_x;
+UPDATE $output SET ave_y = $mc_y;
+UPDATE $output SET ave_len = $mean_length;
 """)
         s3 = t3.substitute(output = output, comp_angle = ("%0.3f" % comp_angle),
                            ldm = ("%0.3f" % ldm), mc_x = ("%0.3f" % float(mc_x)),
@@ -436,11 +419,11 @@ UPDATE $output SET AveLen = $mean_length;
         outf6.write(s3)
 
         if circ_var:
-            print >> outf6, "UPDATE %s SET CirVar = %0.3f;" % (output, circ_var)
+            print >> outf6, "UPDATE %s SET cir_var = %0.3f;" % (output, circ_var)
 
         outf6.close()
 
-        grass.run_command('db.execute', input = tmp6, quiet = True, stderr = nuldev)
+        grass.run_command('db.execute', input_ = tmp6, quiet = True, stderr = nuldev)
 
 
     # print LDM parameters to stdout (with <-g> flag in shell style):
@@ -454,10 +437,11 @@ UPDATE $output SET AveLen = $mean_length;
         print_shell.append('circular_variance')
         
     print_vars = ["%0.3f" % comp_angle, "%0.3f" % ldm,
-                  mc_x + ',' + mc_y,
+                  "%0.3f" % float(mc_x) + ',' + "%0.3f" % float(mc_y),
                   "%0.3f" % mean_length]
     if circ_var:
         print_vars.append("%0.3f" % circ_var)
+
 
     if flags['g']:
         for i,j in zip(print_shell, print_vars):
@@ -467,7 +451,17 @@ UPDATE $output SET AveLen = $mean_length;
             print "%s: %s" % (i, j)
 
 
+    # diplay LDM graphics
+    if flags['x']:
+        if mon:
+            if graph:
+                grass.run_command('d.graph', input_ = graph, flags = 'm', quiet = True, stderr = nuldev)
+            else:
+                grass.run_command('d.graph', input_ = tmp4, flags = 'm', quiet = True, stderr = nuldev)
+        elif graph:
+            grass.message(_("\n Use this command in wxGUI \"Command console\" or with <d.mon> or with \"command layer\" to display LDM graphics: \n d.graph -m input=%s \n\n" ) % graph)
 
+            
 if __name__ == "__main__":
     options, flags = grass.parser()
     atexit.register(cleanup)
