@@ -153,7 +153,7 @@ def main():
         outf.close()
         
         grass.run_command('v.in.ascii', input_ = out, output = outmap,
-                          fs = ' ', quiet = True, stderr = nuldev)
+                          sep = ' ', quiet = True, stderr = nuldev)
 
 
 if __name__ == "__main__":
