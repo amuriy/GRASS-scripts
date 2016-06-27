@@ -147,7 +147,7 @@ export LC_NUMERIC=C
 ############################################################
 cleanup()
 { 
-    g.mremove -f vect="V_TRIANGLE_*" --q
+    g.remove -f type=vect pattern="V_TRIANGLE_*" --q
     rm -f $TMP1*
     
 }
@@ -317,9 +317,9 @@ v.out.ascii format=point in="$GIS_OPT_POINTS" | cut -d'|' -f1-3 | tr '|' ' ' > $
 if [ -n "$GIS_OPT_LINES" ]; then
     v.split in=$GIS_OPT_LINES out=V_TRIANGLE_CUT_SEGM vertices=2 --q --o
     v.category in=V_TRIANGLE_CUT_SEGM out=V_TRIANGLE_CUT_SEGM_NOCATS opt=del --q --o
-    v.category in=V_TRIANGLE_CUT_SEGM_NOCATS out=V_TRIANGLE_CUT_SEGM_NEWCATS --q --o
+    v.category in=V_TRIANGLE_CUT_SEGM_NOCATS out=V_TRIANGLE_CUT_SEGM_NEWCATS opt=add --q --o
 
-    v.to.points -t -v in=V_TRIANGLE_CUT_SEGM_NEWCATS out=V_TRIANGLE_CUT_PTS --q --o
+    v.to.points -t use=vertex in=V_TRIANGLE_CUT_SEGM_NEWCATS out=V_TRIANGLE_CUT_PTS --q --o
 
     v.out.ascii format=point in=V_TRIANGLE_CUT_PTS | tr '|' ' ' > $TMP1.lines_cut
 fi
@@ -329,97 +329,104 @@ fi
 awk -F' ' '{print $1,$2,$3,"0"}' $TMP1.pts_cut > $TMP1.pts_cut_0
 
 if [ -n "$GIS_OPT_LINES" ]; then
-    cat -n $TMP1.lines_cut $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
+    # cat -n $TMP1.lines_cut $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
+	cat -n $TMP1.lines_cut $TMP1.pts_cut_0
 else
-    cat -n $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
+    cat -n $TMP1.pts_cut_0
+	# cat -n $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
 fi
 
-VERT_ALL=$(wc -l $TMP1.pts_lines_cut.node.BODY | awk '{print $1}')
-echo "$VERT_ALL 2 1 1" > $TMP1.pts_lines_cut.node.HEADER
 
-cat $TMP1.pts_lines_cut.node.HEADER $TMP1.pts_lines_cut.node.BODY > $TMP1.pts_lines_cut.node
 
-## make *.poly file
+# VERT_ALL=$(wc -l $TMP1.pts_lines_cut.node.BODY | awk '{print $1}')
+# echo "$VERT_ALL 2 1 1" > $TMP1.pts_lines_cut.node.HEADER
 
-if [ -n "$GIS_OPT_LINES" ]; then
-    echo "0 2 1 1" > $TMP1.pts_lines_cut.poly
-    
-    LINES_VERT=$(wc -l $TMP1.lines_cut | awk '{print $1}')
-    LINES_SEGM=$(($LINES_VERT/2))
-    
-    echo "$LINES_SEGM 1" >> $TMP1.pts_lines_cut.poly
-    
-    cat -n $TMP1.lines_cut  > $TMP1.lines_cut_NUMB
-    
-    awk '{if (NR%2==1) print $1}' $TMP1.lines_cut_NUMB > $TMP1.lines_cut.1
-    awk '{if (NR%2==0) print $1}' $TMP1.lines_cut_NUMB > $TMP1.lines_cut.2
-    awk '{print $5}' $TMP1.lines_cut_NUMB | sort -n | uniq > $TMP1.lines_cut.uniq
-    paste -d' ' $TMP1.lines_cut.1 $TMP1.lines_cut.2 $TMP1.lines_cut.uniq \
-	| cat -n >> $TMP1.pts_lines_cut.poly
-    
-    echo "0" >> $TMP1.pts_lines_cut.poly
-fi
+# cat $TMP1.pts_lines_cut.node.HEADER $TMP1.pts_lines_cut.node.BODY > $TMP1.pts_lines_cut.node
 
-############################################################
-## let's triangulate
+# cat $TMP1.pts_lines_cut.node
+
+# ## make *.poly file
+
+# if [ -n "$GIS_OPT_LINES" ]; then
+#     echo "0 2 1 1" > $TMP1.pts_lines_cut.poly
+    
+#     LINES_VERT=$(wc -l $TMP1.lines_cut | awk '{print $1}')
+#     LINES_SEGM=$(($LINES_VERT/2))
+    
+#     echo "$LINES_SEGM 1" >> $TMP1.pts_lines_cut.poly
+    
+#     cat -n $TMP1.lines_cut  > $TMP1.lines_cut_NUMB
+    
+#     awk '{if (NR%2==1) print $1}' $TMP1.lines_cut_NUMB > $TMP1.lines_cut.1
+#     awk '{if (NR%2==0) print $1}' $TMP1.lines_cut_NUMB > $TMP1.lines_cut.2
+#     awk '{print $5}' $TMP1.lines_cut_NUMB | sort -n | uniq > $TMP1.lines_cut.uniq
+#     paste -d' ' $TMP1.lines_cut.1 $TMP1.lines_cut.2 $TMP1.lines_cut.uniq \
+# 	| cat -n >> $TMP1.pts_lines_cut.poly
+    
+#     echo "0" >> $TMP1.pts_lines_cut.poly
+# fi
+
+
+# ############################################################
+# ## let's triangulate
  
-$TRIANGLE_CMD $TMP1.pts_lines_cut
+# $TRIANGLE_CMD $TMP1.pts_lines_cut
 
-############################################################
-## back from Triangle to GRASS
+# ############################################################
+# ## back from Triangle to GRASS
 
-sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.node > $TMP1.pts_lines_cut.1.node.clean
+# sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.node > $TMP1.pts_lines_cut.1.node.clean
 
-sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.ele | awk '{print $1,$2,$3,$4,$2}' > $TMP1.pts_lines_cut.1.ele.clean
+# sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.ele | awk '{print $1,$2,$3,$4,$2}' > $TMP1.pts_lines_cut.1.ele.clean
 
-awk 'BEGIN{OFS="\n"} {print $2,$3,$4,$5}' \
-    $TMP1.pts_lines_cut.1.ele.clean > $TMP1.pts_lines_cut.1.ele.clean.COL
+# awk 'BEGIN{OFS="\n"} {print $2,$3,$4,$5}' \
+#     $TMP1.pts_lines_cut.1.ele.clean > $TMP1.pts_lines_cut.1.ele.clean.COL
 
-awk '{i=$1;$1=x} NR==FNR{A[i]=$0;next} A[i]{print i,A[i]$0}' \
-    $TMP1.pts_lines_cut.1.node.clean \
-    $TMP1.pts_lines_cut.1.ele.clean.COL \
-    | awk '{print $2,$3,$4}' > $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ
+# awk '{i=$1;$1=x} NR==FNR{A[i]=$0;next} A[i]{print i,A[i]$0}' \
+#     $TMP1.pts_lines_cut.1.node.clean \
+#     $TMP1.pts_lines_cut.1.ele.clean.COL \
+#     | awk '{print $2,$3,$4}' > $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ
 
-echo "B 4" > $TMP1.TIN_to_GRASS
+# echo "B 4" > $TMP1.TIN_to_GRASS
 
-awk 'NR % 4 == 0 {print; print "B 4"; next} {print}' $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ >> $TMP1.TIN_to_GRASS
+# awk 'NR % 4 == 0 {print; print "B 4"; next} {print}' $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ >> $TMP1.TIN_to_GRASS
 
-B="B 4"
-EOF="$(sed -n '$p' $TMP1.TIN_to_GRASS)"
+# B="B 4"
+# EOF="$(sed -n '$p' $TMP1.TIN_to_GRASS)"
 
-if [ "$EOF" = "$B" ]; then
-    sed '$d' $TMP1.TIN_to_GRASS > $TMP1.TIN_to_GRASS.clean
-fi
+# if [ "$EOF" = "$B" ]; then
+#     sed '$d' $TMP1.TIN_to_GRASS > $TMP1.TIN_to_GRASS.clean
+# fi
 
-## import "raw" TIN in GRASS
-v.in.ascii -z -n in=$TMP1.TIN_to_GRASS.clean out=V_TRIANGLE_TIN format=standard fs=' '  --o --q
+# ## import "raw" TIN in GRASS
+# v.in.ascii -z -n in=$TMP1.TIN_to_GRASS.clean out=V_TRIANGLE_TIN format=standard sep=' '  --o --q
 
-## cleanup and make areas
-v.clean in=V_TRIANGLE_TIN out=V_TRIANGLE_TIN_CLEAN tool=bpol,rmdupl  --o --q
-v.centroids in=V_TRIANGLE_TIN_CLEAN out="$GIS_OPT_TIN" --o --q
+# ## cleanup and make areas
+# v.clean in=V_TRIANGLE_TIN out=V_TRIANGLE_TIN_CLEAN tool=bpol,rmdupl  --o --q
+# v.centroids in=V_TRIANGLE_TIN_CLEAN out="$GIS_OPT_TIN" --o --q
 
-##
-## ?? there must be a little hack to make centroids with the right heights ??
-##
+# ##
+# ## ?? there must be a little hack to make centroids with the right heights ??
+# ##
 
-############################################################
-## save Triangle working files if needed
-if [ -n "$GIS_OPT_SAVE" ]; then
-    if [ -d "$GIS_OPT_SAVE" ]; then
-	SAVE_NAME=""$GIS_OPT_POINTS"_"$GIS_OPT_LINES""
-	cp $TMP1.pts_lines_cut.node "$GIS_OPT_SAVE"/"$SAVE_NAME".node
-	cp $TMP1.pts_lines_cut.poly "$GIS_OPT_SAVE"/"$SAVE_NAME".poly
-	cp $TMP1.pts_lines_cut.1.node "$GIS_OPT_SAVE"/"$SAVE_NAME".1.node
-	cp $TMP1.pts_lines_cut.1.poly "$GIS_OPT_SAVE"/"$SAVE_NAME".1.poly
-	cp $TMP1.pts_lines_cut.1.ele "$GIS_OPT_SAVE"/"$SAVE_NAME".1.ele
-    else
-	g.message -e ""$GIS_OPT_SAVE" is not a directory or not exists"
-	cleanup
-	exit 1
-    fi
-fi
+# ############################################################
+# ## save Triangle working files if needed
+# if [ -n "$GIS_OPT_SAVE" ]; then
+#     if [ -d "$GIS_OPT_SAVE" ]; then
+# 	SAVE_NAME=""$GIS_OPT_POINTS"_"$GIS_OPT_LINES""
+# 	cp $TMP1.pts_lines_cut.node "$GIS_OPT_SAVE"/"$SAVE_NAME".node
+# 	cp $TMP1.pts_lines_cut.poly "$GIS_OPT_SAVE"/"$SAVE_NAME".poly
+# 	cp $TMP1.pts_lines_cut.1.node "$GIS_OPT_SAVE"/"$SAVE_NAME".1.node
+# 	cp $TMP1.pts_lines_cut.1.poly "$GIS_OPT_SAVE"/"$SAVE_NAME".1.poly
+# 	cp $TMP1.pts_lines_cut.1.ele "$GIS_OPT_SAVE"/"$SAVE_NAME".1.ele
+#     else
+# 	g.message -e ""$GIS_OPT_SAVE" is not a directory or not exists"
+# 	cleanup
+# 	exit 1
+#     fi
+# fi
 
-############################################################
+# ############################################################
 
 cleanup
 
