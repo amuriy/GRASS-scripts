@@ -237,11 +237,42 @@ def main():
                 row.append('0')
                 writer.writerow(row)
     
-    with open(tmp_pts_cut_0, 'r') as f:
+
+    tmp_pts_cut_0_lines_cut = tmp_pts_cut + '_0_lines_cut'
+
+    filenames = [tmp_pts_cut_0, tmp_lines_cut]
+    with open(tmp_pts_cut_0_lines_cut, 'w') as outfile:
+        for fname in filenames:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
+
+    with open(tmp_pts_cut_0_lines_cut, 'r') as f:
         print f.read().strip()
-    
-    if in_lines:
-        
+
+
+                    
+    # if in_lines:
+    #     tmp_pts_cut_node_BODY = tmp_pts_cut + '_node_BODY'
+    #     with open(tmp_pts_cut_0,'r') as fin1:
+    #         with open(tmp_lines_cut,'r') as fin2:
+    #             with open (tmp_pts_cut_node_BODY,'w') as fout:
+    #                 writer = csv.writer(fout, delimiter=' ')
+    #                 reader1 = csv.reader(fin1, delimiter=' ')
+    #                 reader2 = csv.reader(fin2, delimiter=' ')
+    #                 for row in reader2:
+    #                     # print [str(reader1.line_num)] + row
+    #                     print row
+                    
+                        
+                    # for row in csv.reader(fin1, delimiter=' '):
+
+                        # row.append()
+                        # writer.writerow(row)
+                    # for row in csv.reader(fin2, delimiter=' '):
+                    #     row.append('0')
+                    #     writer.writerow(row)    
+
 
 # if [ -n "$GIS_OPT_LINES" ]; then
 #     cat -n $TMP1.lines_cut $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
