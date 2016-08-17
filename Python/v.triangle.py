@@ -136,8 +136,9 @@ import glob
 import atexit
 # import pandas as pd
 import csv
+import itertools
 
-# from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE
 
 try:
     import grass.script as grass
@@ -149,17 +150,18 @@ except:
             print "You must be in GRASS GIS to run this program."
             sys.exit(1)
 
-try:
-    import triangle
-except:
-    print "You have to install <triangle> Python module to run this script."
-    sys.exit(1)
+# try:
+#     import triangle
+# except:
+#     print "You have to install <triangle> Python module to run this script."
+#     sys.exit(1)
 
 
 grass_version = grass.version().get('version')[0:2]
 if grass_version != '7.':
-    grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell-script <v.triangle>"))
-    
+    grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
+
+
 def cleanup():
     nuldev = file(os.devnull, 'w')
     grass.try_remove(tmp)
@@ -168,6 +170,7 @@ def cleanup():
     grass.run_command('g.remove', type_ = 'vect', pat = 'V_TRIANGLE_*', flags = 'f',
                       quiet = True, stderr = nuldev)
 
+
 def main():
     in_pts = options['points']
     in_lines = options['lines']
@@ -175,7 +178,6 @@ def main():
     max_area = options['max_area']
     min_angle = options['min_angle']
     steiner_points = options['steiner_points']
-    
     
     global tmp, nuldev, grass_version
     nuldev = None
@@ -197,9 +199,7 @@ def main():
         
     ############################################################
     ## prepare vectors to Triangle input
-    
-    # v.out.ascii format=point in="$GIS_OPT_POINTS" | cut -d'|' -f1-3 | tr '|' ' ' > $TMP1.pts_cut
-    
+
     tmp_pts_cut = tmp + '_pts_cut'
     
     grass.run_command('v.out.ascii', input_ = in_pts, output = tmp_pts_cut,
@@ -236,59 +236,116 @@ def main():
             for row in csv.reader(fin, delimiter=' '):
                 row.append('0')
                 writer.writerow(row)
+
+    tmp_cut = tmp + '_cut'
+
+    with open(tmp_cut, 'w') as outfile:
+        if in_lines:
+            filenames = [tmp_lines_cut, tmp_pts_cut_0]
+        else:
+            filenames = [tmp_pts_cut_0]
+
+        for fname in filenames:
+            with open(fname) as infile:
+                for num, line in enumerate(infile, 1):
+                    outfile.write('%s ' '%s' % (num, line))
+
+    num_lines = sum(1 for line in open(tmp_cut))
+
+    tmp_header = tmp + '_header'
+    with open(tmp_header,'w') as fout:
+        fout.write("%s 2 1 1" % num_lines)
+        fout.write('\n')
+
+    tmp_node = tmp + '_node'
     
-
-    tmp_pts_cut_0_lines_cut = tmp_pts_cut + '_0_lines_cut'
-
-    filenames = [tmp_pts_cut_0, tmp_lines_cut]
-    with open(tmp_pts_cut_0_lines_cut, 'w') as outfile:
+    filenames = [tmp_header, tmp_cut]
+    with open(tmp_node, 'w') as outfile:
         for fname in filenames:
             with open(fname) as infile:
                 for line in infile:
                     outfile.write(line)
 
-    with open(tmp_pts_cut_0_lines_cut, 'r') as f:
-        print f.read().strip()
-
-
-                    
-    # if in_lines:
-    #     tmp_pts_cut_node_BODY = tmp_pts_cut + '_node_BODY'
-    #     with open(tmp_pts_cut_0,'r') as fin1:
-    #         with open(tmp_lines_cut,'r') as fin2:
-    #             with open (tmp_pts_cut_node_BODY,'w') as fout:
-    #                 writer = csv.writer(fout, delimiter=' ')
-    #                 reader1 = csv.reader(fin1, delimiter=' ')
-    #                 reader2 = csv.reader(fin2, delimiter=' ')
-    #                 for row in reader2:
-    #                     # print [str(reader1.line_num)] + row
-    #                     print row
-                    
-                        
-                    # for row in csv.reader(fin1, delimiter=' '):
-
-                        # row.append()
-                        # writer.writerow(row)
-                    # for row in csv.reader(fin2, delimiter=' '):
-                    #     row.append('0')
-                    #     writer.writerow(row)    
-
-
-# if [ -n "$GIS_OPT_LINES" ]; then
-#     cat -n $TMP1.lines_cut $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
-# else
-#     cat -n $TMP1.pts_cut_0  > $TMP1.pts_lines_cut.node.BODY
-# fi
-
-# VERT_ALL=$(wc -l $TMP1.pts_lines_cut.node.BODY | awk '{print $1}')
-# echo "$VERT_ALL 2 1 1" > $TMP1.pts_lines_cut.node.HEADER
-
-# cat $TMP1.pts_lines_cut.node.HEADER $TMP1.pts_lines_cut.node.BODY > $TMP1.pts_lines_cut.node
-
-# cat $TMP1.pts_lines_cut.node
-
+    ## make *.poly file
+    tmp_poly = tmp + '.poly'
+    if in_lines:
+        with open(tmp_poly, 'w') as fout:
+            fout.write('0 2 1 1')
+            fout.write('\n')
     
+    vert_num = sum(1 for line in open(tmp_lines_cut))
+    segm_num = (vert_num / 2)
 
+    with open(tmp_poly, 'a') as fout:
+        fout.write('%s 1' % segm_num)
+        fout.write('\n')
+    
+    tmp_num = tmp + '_num'
+    
+    with open(tmp_num, 'w') as outfile:
+        with open(tmp_lines_cut) as infile:
+            for num, line in enumerate(infile, 1):
+                outfile.write('%s ' '%s' % (num, line))
+
+    tmp_num1 = tmp + '_num1'
+    tmp_num2 = tmp + '_num2'
+    tmp_num3 = tmp + '_num3'
+    tmp_num4 = tmp + '_num4'
+    tmp_num5 = tmp + '_num5'
+
+    with open(tmp_num1, 'w') as outfile1:
+        with open(tmp_num2, 'w') as outfile2:
+            with open(tmp_num) as infile:
+                reader = csv.reader(infile, delimiter=' ')
+                for row in reader:
+                    content = list(row[i] for i in [0])
+                    content = [int(i) for i in content]
+                    content2 = str(content).replace('[','').replace(']','')
+                    if int(content2) % 2:
+                        outfile1.write('%s' % content2)
+                        outfile1.write('\n')
+                    else:
+                        outfile2.write('%s' % content2)
+                        outfile2.write('\n')
+    numlist = []
+    with open(tmp_num) as infile:
+        reader = csv.reader(infile, delimiter=' ')
+        for row in reader:
+            content = list(row[i] for i in [4])
+            content = [int(i) for i in content]
+            numlist.append(content)
+
+    numlist2 = [item for sublist in numlist for item in sublist]
+    numlist3 = list(set(numlist2))
+
+    with open(tmp_num3, 'w') as outfile:
+        for item in numlist3:
+            outfile.write("%s\n" % item)
+
+    with open(tmp_num4, 'w') as outfile, open(tmp_num1) as f1, open(tmp_num2) as f2, open(tmp_num3) as f3:
+        for line1, line2, line3 in itertools.izip_longest(f1, f2, f3, fillvalue = ""):
+            outfile.write("{} {} {}\n".format(line1.rstrip(), line2.rstrip(), line3.rstrip()))
+
+    with open(tmp_num5, 'w') as outfile:
+        with open(tmp_num4) as infile:
+            for num, line in enumerate(infile, 1):
+                outfile.write('%s ' '%s' % (num, line))
+
+    with open(tmp_poly, 'a') as outfile:
+        with open(tmp_num5) as infile:
+            for line in infile:
+                outfile.write(line)
+        outfile.write('0')
+                
+    # with open(tmp_poly, 'r') as f:
+    #     print f.read().strip()
+
+    ## let's triangulate
+    t = triangle.get_data(tmp_poly)
+    print t
+    # tri = triangle.triangulate(t, 'pc')
+    
+        
 if __name__ == "__main__":
     options, flags = grass.parser()
     atexit.register(cleanup)
