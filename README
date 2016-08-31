@@ -3,7 +3,7 @@ Alexander Muriy (Moscow, Russia)
 
 These modules were written for GRASS 6.4.* or GRASS 7 to help me in geospatial work. 
 
-To use these shell and Python scripts just copy them to some catalog in your system PATH (or set GRASS_ADDON_PATH variable) and make them executable (as general, "chmod +x" in Unix-like systems). 
+To use these shell or Python scripts just copy them to some catalog in your system PATH (or set GRASS_ADDON_PATH variable) and make them executable (as general, "chmod +x" in Unix-like systems). 
 
 If you find some errors, please, write me (amuriy AT gmail DOT com) or make an issue. 
 
