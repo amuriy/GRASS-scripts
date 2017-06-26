@@ -5,12 +5,12 @@
 # MODULE:       r.localmax
 #
 # AUTHOR(S):    Alexander Muriy
-#               (Institute of Environmental Geoscience, Moscow, Russia)  
+#               (Moscow, Russia)
 #               e-mail: amuriy AT gmail DOT com
 #
-#               Idea by Jachym Cepicky - Perl version (local_max.pl)
+#               Filter idea by Jachym Cepicky - Perl version (local_max.pl)
 #
-# PURPOSE:      Local maxima filter for rasters (optionally saving to points)
+# PURPOSE:      Local maxima filter for rasters (optionally saves vector points)
 #
 # COPYRIGHT:    2017, Alexander Muriy / GRASS Development Team
 #               
@@ -27,7 +27,7 @@
 ############################################################################
 
 #%Module 
-#%  description: Local maxima filter for rasters (with optionally saving to points)
+#%  description: Local maxima filter for rasters (optionally saves vector points)
 #%  keywords: raster, map algebra
 #%End
 #%Option
