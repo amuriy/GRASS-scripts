@@ -102,14 +102,20 @@ def main():
                           quiet = True)
 
     grass.run_command('v.db.dropcolumn', map_ = 'vector_tmp1',
-                      column = 'rast_cat', quiet = True)
-    grass.run_command('v.edit', map_ = 'vector_tmp1',
-                      bgmap = 'vector_tmp2', type_ = 'boundary',
-                      tool = 'copy', cats = 0-999999,
-                      quiet = True)
+                      column = 'rast_cat', quiet = True)        
     grass.run_command('g.rename', vector = ('vector_tmp1', poly1),
                       overwrite = True, quiet = True)
+    
+    f = grass.vector_layer_db(poly1, 1)
 
+    table = f['table']
+    keycol = f['key']
+    database = f['database']
+    driver = f['driver']
+
+    sql = "ALTER TABLE %s RENAME TO %s" % ('vector_tmp1', poly1)
+    grass.write_command('db.execute', input='-', database = database, driver = sqlite, stdin=sql)
+    
 
 if __name__ == "__main__":
     options, flags = grass.parser()
