@@ -114,7 +114,7 @@ def main():
     driver = f['driver']
 
     sql = "ALTER TABLE %s RENAME TO %s" % ('vector_tmp1', poly1)
-    grass.write_command('db.execute', input='-', database = database, driver = sqlite, stdin=sql)
+    grass.write_command('db.execute', input='-', database = database, driver = driver, stdin=sql)
     
 
 if __name__ == "__main__":
