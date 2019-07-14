@@ -15,7 +15,7 @@
 #               conforming Delaunay triangulations and high-quality triangular meshes. 
 #               In GIS terminology, it produces 2D TIN, optionally with "breaklines".
 #
-# COPYRIGHT:    (C) 2012 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2012, 2019 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ export LC_NUMERIC=C
 ############################################################
 cleanup()
 { 
-    g.remove -f type=vect pattern="V_TRIANGLE_*" --q
+    g.remove -f type=vect pat="V_TRIANGLE_*" --q
     rm -f $TMP1*
     
 }
@@ -230,59 +230,59 @@ if [ -n "$GIS_OPT_LINES" ]; then
     if [ $GIS_FLAG_C -eq 1 ]; then
     	FLAG_C="-q0"
     else
-	FLAG_C=""
+    	FLAG_C=""
     fi
     
     if [ "$GIS_FLAG_A" -eq 1 ]; then
-	if [ -n "$GIS_OPT_MAX_AREA" ]; then
-	    FLAG_A="-a${GIS_OPT_MAX_AREA}"
-	else	
-	    g.message -e "To use flag <"-a"> choose <max_area> option"   
+    	if [ -n "$GIS_OPT_MAX_AREA" ]; then
+    	    FLAG_A="-a${GIS_OPT_MAX_AREA}"
+    	else	
+    	    g.message -e "To use flag <"-a"> choose <max_area> option"   
     	    cleanup
     	    exit 1
-	fi
+    	fi
     else
-	FLAG_A=""
+    	FLAG_A=""
     fi
     
     if [ "$GIS_FLAG_D" -eq 1 ]; then
-	FLAG_D="-D"
+    	FLAG_D="-D"
     else
-	FLAG_D=""
+    	FLAG_D=""
     fi
 
     if [ "$GIS_FLAG_Q" -eq 1 ]; then
-	FLAG_Q="-q -Y"
-	if [ -n "$GIS_OPT_MIN_ANGLE" ]; then
-	    FLAG_Q="-q${GIS_OPT_MIN_ANGLE}"
-	fi
+    	FLAG_Q="-q -Y"
+    	if [ -n "$GIS_OPT_MIN_ANGLE" ]; then
+    	    FLAG_Q="-q${GIS_OPT_MIN_ANGLE}"
+    	fi
     fi
     
     if [ $GIS_FLAG_L -eq 1 ]; then
     	FLAG_L="-l"
     else
-	FLAG_L=""
+    	FLAG_L=""
     fi
 
     if [ "$GIS_FLAG_Y" -eq 1 ]; then
-	FLAG_Y="-Y"
-	if [ "$GIS_FLAG_Q" -eq 1 ]; then
-	    FLAG_Y=""
-	fi
+    	FLAG_Y="-Y"
+    	if [ "$GIS_FLAG_Q" -eq 1 ]; then
+    	    FLAG_Y=""
+    	fi
     else
-	FLAG_Y=""
+    	FLAG_Y=""
     fi
 
     if [ "$GIS_FLAG_S" -eq 1 ]; then
-	if [ -n "$GIS_OPT_STEINER_POINTS" ]; then
-	    FLAG_S="-S${GIS_OPT_STEINER_POINTS}"
-	else	
-	    g.message -e "To use flag <"-s"> choose <steiner_points> option"   
+    	if [ -n "$GIS_OPT_STEINER_POINTS" ]; then
+    	    FLAG_S="-S${GIS_OPT_STEINER_POINTS}"
+    	else	
+    	    g.message -e "To use flag <"-s"> choose <steiner_points> option"   
     	    cleanup
     	    exit 1
-	fi	
+    	fi	
     else
-	FLAG_S=""
+    	FLAG_S=""
     fi
 
     if [ "$GIS_FLAG_I" -eq 1 ]; then
@@ -341,8 +341,7 @@ echo "$VERT_ALL 2 1 1" > $TMP1.pts_lines_cut.node.HEADER
 
 cat $TMP1.pts_lines_cut.node.HEADER $TMP1.pts_lines_cut.node.BODY > $TMP1.pts_lines_cut.node
 
-
-# ## make *.poly file
+## make *.poly file
 
 if [ -n "$GIS_OPT_LINES" ]; then
     echo "0 2 1 1" > $TMP1.pts_lines_cut.poly
@@ -373,19 +372,20 @@ fi
 
 $TRIANGLE_CMD $TMP1.pts_lines_cut.poly
 
-# ############################################################
-# ## back from Triangle to GRASS
+############################################################
+## back from Triangle to GRASS
 
 sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.node > $TMP1.pts_lines_cut.1.node.clean
 
 sed -e '$d' -n -e '2,$p' $TMP1.pts_lines_cut.1.ele | awk '{print $1,$2,$3,$4,$2}' > $TMP1.pts_lines_cut.1.ele.clean
 
+
 awk 'BEGIN{OFS="\n"} {print $2,$3,$4,$5}' \
     $TMP1.pts_lines_cut.1.ele.clean > $TMP1.pts_lines_cut.1.ele.clean.COL
 
-awk '{i=$1;$1=x} NR==FNR{A[i]=$0;next} A[i]{print i,A[i]$0}' \
-    $TMP1.pts_lines_cut.1.node.clean \
-    $TMP1.pts_lines_cut.1.ele.clean.COL > $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ
+# awk '{i=$1;$1=x} NR==FNR{A[i]=$0;next} A[i]{print i,A[i]$0}' \
+#     $TMP1.pts_lines_cut.1.node.clean \
+#     $TMP1.pts_lines_cut.1.ele.clean.COL > $TMP1.pts_lines_cut.1.ele.clean.COL.XYZ
 
 awk '{i=$1;$1=x} NR==FNR{A[i]=$0;next} A[i]{print i,A[i]$0}' \
     $TMP1.pts_lines_cut.1.node.clean \

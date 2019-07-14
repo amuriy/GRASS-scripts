@@ -219,9 +219,9 @@ if [ "$lines" -eq 0 ] && [ "$boundaries" -eq 0 ]; then
     exit 1
 fi
 
-for vars in "$(v.info -t "$GIS_OPT_MAP" | cut -d"=" -f1)"; do
-    unset -v "$vars"
-done
+# for vars in "$(v.info -t "$GIS_OPT_MAP" | cut -d"=" -f1)"; do
+#     unset -v "$vars"
+# done
 
 ## check if monitor started
 
@@ -341,9 +341,9 @@ else
     g.rename vect=TMP_select,TMP_select_lines --quiet
 fi
 
-for vars in "$(v.info -t TMP_select_lines | cut -d"=" -f1)"; do
-    unset -v "$vars"
-done
+# for vars in "$(v.info -t TMP_select_lines | cut -d"=" -f1)"; do
+#     unset -v "$vars"
+# done
 
 
 ## split line into segments; delete old cats, add new cats

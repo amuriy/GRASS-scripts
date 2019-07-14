@@ -11,11 +11,13 @@
 #               (http://www.cs.cmu.edu/~quake/triangle.html) 
 #               of J.R. Shewchuk.
 #
-#               Makes exact Delaunay triangulations, constrained Delaunay triangulations, 
-#               conforming Delaunay triangulations and high-quality triangular meshes. 
-#               In GIS terminology, it produces 2D TIN, optionally with "breaklines".
+#               Makes constrained Delaunay triangulations, 
+#               conforming Delaunay triangulations and high-quality triangular meshes.
+#               In GIS terminology, it produces TIN, optionally with "hard breaklines"
+#               and also with the angle or area constraints. Conforming constrained Delaunay
+#               triangulation (CCDT) is made by default.
 #
-# COPYRIGHT:    (C) 2012,2016 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2012,2016,2019 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -29,8 +31,8 @@
 #
 ############################################################################
 #%Module 
-#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make exact Delaunay triangulations, constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. In GIS terminology, it produces 2D TIN, optionally with "breaklines".
-#%  keywords: vector, geometry, triangulation
+#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. In GIS terminology, it produces TIN, optionally with "hard breaklines" and also with the angle or area constraints. Conforming constrained Delaunay triangulation (CCDT) is made by default.
+#%  keywords: vector, geometry, TIN, triangulation
 #%End
 #%Option
 #%  key: points
@@ -75,26 +77,6 @@
 #%  key_desc: name
 #%  description: Minimum mesh angle (use with "-q" flag)
 #%End
-#%Option
-#%  key: steiner_points
-#%  type: integer
-#%  required: no
-#%  multiple: no
-#%  key_desc: name
-#%  description: Specifies the maximum number of Steiner points that may be inserted into the mesh (use with "-s" flag)
-#%End
-#%Option
-#%  key: save
-#%  type: string
-#%  required: no
-#%  multiple: no
-#%  key_desc: name
-#%  description: Path to save <Triangle> working files (*.node,*.poly,*.edge,*.ele). By default uses current location directory
-#%End
-#%Flag
-#%  key: c
-#%  description: Conforming constrained Delaunay triangulation without angle or area constraints
-#%End
 #%Flag
 #%  key: d 
 #%  description: Conforming Delaunay triangulation
@@ -107,38 +89,15 @@
 #%  key: a
 #%  description: Imposes a maximum triangle area constraint
 #%End
-#%Flag
-#%  key: l
-#%  description: Uses only vertical cuts in the divide-and-conquer algorithm
-#%End
-#%Flag
-#%  key: y
-#%  description: Prohibits the insertion of Steiner points on the mesh boundary 
-#%End
-#%Flag
-#%  key: s
-#%  description: Specifies the maximum number of added Steiner points
-#%End
-#%Flag
-#%  key: i
-#%  description: Uses the incremental algorithm for Delaunay triangulation, rather than the divide-and-conquer algorithm
-#%End
-#%Flag
-#%  key: f
-#%  description: Uses Steven Fortune's sweepline algorithm for Delaunay triangulation, rather than the divide-and-conquer algorithm
-#%End
 ###########################################################################
-
 
 import sys
 import os
 import glob
 import atexit
-# import pandas as pd
 import csv
 import itertools
-
-from subprocess import Popen, PIPE
+import subprocess 
 
 try:
     import grass.script as grass
@@ -150,17 +109,13 @@ except:
             print "You must be in GRASS GIS to run this program."
             sys.exit(1)
 
-# try:
-#     import triangle
-# except:
-#     print "You have to install <triangle> Python module to run this script."
-#     sys.exit(1)
-
+if not grass.find_program('triangle'):
+    if not grass.find_program('triangle.exe'):
+        grass.fatal(_("<Triangle> utility required. Follow instructions on the official page (http://www.cs.cmu.edu/~quake/triangle.html) to install it."))
 
 grass_version = grass.version().get('version')[0:2]
 if grass_version != '7.':
     grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
-
 
 def cleanup():
     nuldev = file(os.devnull, 'w')
@@ -170,14 +125,12 @@ def cleanup():
     grass.run_command('g.remove', type_ = 'vect', pat = 'V_TRIANGLE_*', flags = 'f',
                       quiet = True, stderr = nuldev)
 
-
 def main():
     in_pts = options['points']
     in_lines = options['lines']
     out_tin = options['tin']
     max_area = options['max_area']
     min_angle = options['min_angle']
-    steiner_points = options['steiner_points']
     
     global tmp, nuldev, grass_version
     nuldev = None
@@ -188,25 +141,47 @@ def main():
     # check for LatLong location
     if grass.locn_is_latlong() == True:
         grass.fatal("Module works only in locations with cartesian coordinate system")
-
-    # check if input file exists
+        
+    # check if input maps are existed
     if not grass.find_file(in_pts, element = 'vector')['file']:
+        grass.fatal(_("<%s> does not exist.") % inmap)
+    if not grass.find_file(in_lines, element = 'vector')['file']:
         grass.fatal(_("<%s> does not exist.") % inmap)
 
     ############################################################
     ## check for Triangle options
-    
-        
+    if max_area and not flags['a']:
+        grass.fatal(_("\n Use <max_area> option with <\"-a\" flag>"))
+    if min_angle and not flags['q']:
+        grass.fatal(_("\n Use <min_angle> option with <\"-q\" flag>"))
+    if in_lines:
+        if flags['a']:
+            if max_area:
+                flag_a = "-a%s" % max_area
+            else:
+                grass.fatal(_("\n To use flag <\"-a\"> choose <max_area> option"))
+        else:
+            flag_a = ""
+        if flags['d']:
+            flag_d = "-D"
+        else:
+            flag_d = ""
+        if flags['q']:
+            flag_q = "-q -Y"
+            if min_angle:
+                flag_q = "-q%s" % min_angle
+        else:
+            flag_q = ""
+                
     ############################################################
     ## prepare vectors to Triangle input
-
-    tmp_pts_cut = tmp + '_pts_cut'
+    grass.message(_("Prepare vectors to Triangle input..."))
     
+    tmp_pts_cut = tmp + '_pts_cut'
     grass.run_command('v.out.ascii', input_ = in_pts, output = tmp_pts_cut,
                       sep = ' ', quiet = True, stderr = nuldev)
 
     tmp_pts_cut2 = tmp_pts_cut + '2'
-    
     with open(tmp_pts_cut,'r') as fin:
         with open (tmp_pts_cut2,'w') as fout:
             writer = csv.writer(fout, delimiter=' ')            
@@ -257,8 +232,7 @@ def main():
         fout.write("%s 2 1 1" % num_lines)
         fout.write('\n')
 
-    tmp_node = tmp + '_node'
-    
+    tmp_node = tmp + '.node'    
     filenames = [tmp_header, tmp_cut]
     with open(tmp_node, 'w') as outfile:
         for fname in filenames:
@@ -280,8 +254,7 @@ def main():
         fout.write('%s 1' % segm_num)
         fout.write('\n')
     
-    tmp_num = tmp + '_num'
-    
+    tmp_num = tmp + '_num'    
     with open(tmp_num, 'w') as outfile:
         with open(tmp_lines_cut) as infile:
             for num, line in enumerate(infile, 1):
@@ -336,14 +309,122 @@ def main():
             for line in infile:
                 outfile.write(line)
         outfile.write('0')
-                
-    # with open(tmp_poly, 'r') as f:
-    #     print f.read().strip()
 
     ## let's triangulate
-    t = triangle.get_data(tmp_poly)
-    print t
-    # tri = triangle.triangulate(t, 'pc')
+    grass.message(_("Triangulate..."))
+    subprocess.call(['triangle', '-Q', '-c', '-p', flag_a, flag_d, flag_q, tmp_poly], shell = False)
+
+    ## back from Triangle to GRASS
+    grass.message(_("Back from Triangle to GRASS..."))
+    out_node = tmp + '.1.node'
+    out_node = out_node.replace('0.','')
+
+    out_ele = tmp + '.1.ele'
+    out_ele = out_ele.replace('0.','')
+
+    out_node2 = out_node + '2'
+    out_node3 = out_node + '3'
+    out_node4 = out_node + '4'
+    out_ele2 = out_ele + '2'
+    out_ele3 = out_ele + '3'
+    
+    with open(out_node, 'r') as f:
+        data = f.read().splitlines(True)
+        with open(out_node2, 'w') as fout:
+            fout.writelines(data[1:])
+
+    with open(out_node2, 'r') as f:
+        data = f.read().splitlines(True)
+        with open(out_node3, 'w') as fout:
+            fout.writelines(data[:-1])
+
+    with open(out_node4, 'w') as fout:
+        with open(out_node3) as fin:
+            for line in fin:
+                line2 = " ".join(line.split())
+                fout.write(line2 + '\n')
+
+    with open(out_ele, 'r') as f:
+        data = f.read().splitlines(True)
+        with open(out_ele2, 'w') as fout:
+            fout.writelines(data[1:])
+
+    with open(out_ele2, 'r') as f:
+        data = f.read().splitlines(True)
+        with open(out_ele3, 'w') as fout:
+            fout.writelines(data[:-1])        
+
+    out_ele4 = out_ele + '4'
+    with open(out_ele4, 'w') as fout:
+        with open(out_ele3) as fin:
+            for line in fin:
+                line2 = " ".join(line.split())
+                fout.write(line2 + '\n')
+    
+    out_ele5 = out_ele + '5'
+    with open(out_ele4,'r') as fin:
+        with open (out_ele5,'w') as fout:
+            writer = csv.writer(fout, delimiter='\n')
+            for row in csv.reader(fin, delimiter=' '):
+                row2 = row[1:4]
+                ap = ''.join(row[1:2])
+                row2.append(ap)
+                writer.writerow(row2)
+
+    out_ele6 = out_ele + '6'
+    with open(out_ele5, 'r') as f1, open(out_node4, 'r') as f2, open(out_ele6, 'w') as fout:
+        list1 = f1.read().splitlines()
+        list2 = f2.read().splitlines()
+        for line1 in list1:
+            for line2 in list2:                
+                if line2.startswith(str(line1)):
+                    fout.write(line2 + '\n')
+                    break
+
+    out_ele7 = out_ele + '7'
+    with open(out_ele6,'r') as fin:
+        with open (out_ele7,'w') as fout:
+            writer = csv.writer(fout, delimiter=' ')
+            for row in csv.reader(fin, delimiter=' '):
+                row = row[1:4]
+                writer.writerow(row)
+
+    out_ele8 = out_ele + '8'
+    with open(out_ele8, 'w') as fout, open(out_ele7, 'r') as fin:
+        fout.write('B 4\n')
+        for line in fin:
+            fout.write(line)
+
+    out_ele9 = out_ele + '9'
+    with open(out_ele9, 'w') as fout:
+        with open(out_ele8, 'r') as fin:
+            for lineno, line in enumerate(fin):
+                if lineno % 4 == 0:
+                    fout.write(line.rstrip() + '\nB 4\n')
+                else:
+                    fout.write(line.rstrip() + '\n')
+
+    out_ele10 = out_ele + '10'
+    with open(out_ele10, 'w') as fout, open(out_ele9, 'r') as fin:
+        lines = fin.readlines()
+        lines = lines[:-1]    
+        lines = lines[1:]
+        for line in lines:
+            fout.write(line)
+
+    ## import "raw" TIN into GRASS
+    grass.run_command('v.in.ascii', flags = 'zn', input_ = out_ele10, output = 'V_TRIANGLE_TIN_RAW',
+                      format_ = 'standard', sep = ' ', quiet = True, stderr = nuldev)
+
+    ## cleanup and make areas
+    grass.run_command('v.clean', input_ = 'V_TRIANGLE_TIN_RAW', output = 'V_TRIANGLE_TIN_CLEAN',
+                      tool = ('bpol','rmdupl'), quiet = True, stderr = nuldev)
+    ##
+    ## ?? there must be a little hack to make centroids with the right heights ??
+    ##
+    
+    grass.run_command('v.centroids', input_ = 'V_TRIANGLE_TIN_CLEAN', output = out_tin,
+                      quiet = True, stderr = nuldev)
     
         
 if __name__ == "__main__":
