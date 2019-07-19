@@ -4,4 +4,6 @@ v.triangle:
 - сделать sort breaklines в коде;
 - добавить поддержку полигонов (hulls, clip, erase, replace, valuefill) - см. Triangle + ArcGIS;
 - по умолчанию сделать conforming Delaunay (на выбор "conforming constrained" или "constrained");
--  
+- сделать нормальные 3d-центроиды (как?); --> https://stackoverflow.com/a/18307215
+- сравнить TIN из GRASS с растром из QGIS, который получается интерполяцией TIN;
+- 
