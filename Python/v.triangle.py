@@ -35,7 +35,7 @@
 #%  keywords: vector, geometry, TIN, triangulation
 #%End
 #%Option
-#%  key: points
+#%  key: masspoints
 #%  type: string
 #%  required: yes
 #%  multiple: no
@@ -44,16 +44,16 @@
 #%  gisprompt: old,vector,vector
 #%End
 #%Option
-#%  key: lines
+#%  key: breaklines
 #%  type: string
-#%  required: no
+#%  required: yes
 #%  multiple: no
 #%  key_desc: name
 #%  description: Input vector map containing breaklines 
 #%  gisprompt: old,vector,vector
 #%End
 #%Option
-#%  key: tin
+#%  key: out_tin
 #%  type: string
 #%  required: yes
 #%  multiple: no
@@ -62,13 +62,14 @@
 #%  gisprompt: new,vector,vector
 #%End
 #%Option
-#%  key: breaklines
+#%  key: breaklines_type
 #%  type: string
-#%  required: yes
+#%  required: no
 #%  multiple: no
-#%  key_desc: name
-#%  description: Name of output vector map (TIN)
-#%  gisprompt: new,vector,vector
+#%  key_desc: type
+#%  options: hard,soft
+#%  answer: hard
+#%  description: Type of breaklines
 #%End
 #%Option
 #%  key: max_area

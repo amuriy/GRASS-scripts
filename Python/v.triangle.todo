@@ -4,4 +4,4 @@ v.triangle:
 - сделать sort breaklines в коде;
 - добавить поддержку полигонов (hulls, clip, erase, replace, valuefill) - см. Triangle + ArcGIS;
 - по умолчанию сделать conforming Delaunay (на выбор "conforming constrained" или "constrained");
-- 
+-  
