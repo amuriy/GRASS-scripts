@@ -154,9 +154,9 @@ def main():
         
     # check if input maps are existed
     if not grass.find_file(in_pts, element = 'vector')['file']:
-        grass.fatal(_("<%s> does not exist.") % inmap)
+        grass.fatal(_("<%s> does not exist.") % in_pts)
     if not grass.find_file(in_lines, element = 'vector')['file']:
-        grass.fatal(_("<%s> does not exist.") % inmap)
+        grass.fatal(_("<%s> does not exist.") % in_lines)
 
     ############################################################
     ## check for Triangle options

@@ -1,9 +1,9 @@
 v.triangle:
 - изменить имена опций (как в ArcGIS);
 - добавить опцию с типом breaklines;
-- сделать sort breaklines в коде;
+- сделать soft breaklines в коде (v.to.points in=brklinz out=brklinz_pts use=vertex + v.patch in=masspntz,brklinz_pts out=masspntz_brklinz);
 - добавить поддержку полигонов (hulls, clip, erase, replace, valuefill) - см. Triangle + ArcGIS;
 - по умолчанию сделать conforming Delaunay (на выбор "conforming constrained" или "constrained");
 - сделать нормальные 3d-центроиды (как?); --> https://stackoverflow.com/a/18307215
 - сравнить TIN из GRASS с растром из QGIS, который получается интерполяцией TIN;
-- 
+-  
