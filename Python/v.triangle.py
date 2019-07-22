@@ -62,7 +62,7 @@
 #%  gisprompt: new,vector,vector
 #%End
 #%Option
-#%  key: breaklines_type
+#%  key: br_type
 #%  type: string
 #%  required: no
 #%  multiple: no
@@ -153,10 +153,12 @@ def main():
         grass.fatal("Module works only in locations with cartesian coordinate system")
         
     # check if input maps are existed
-    if not grass.find_file(in_pts, element = 'vector')['file']:
-        grass.fatal(_("<%s> does not exist.") % in_pts)
-    if not grass.find_file(in_lines, element = 'vector')['file']:
-        grass.fatal(_("<%s> does not exist.") % in_lines)
+    if in_pts:
+        if not grass.find_file(in_pts, element = 'vector')['file']:
+            grass.fatal(_("<%s> does not exist.") % in_pts)
+    if in_lines:
+        if not grass.find_file(in_lines, element = 'vector')['file']:
+            grass.fatal(_("<%s> does not exist.") % in_lines)
 
     ############################################################
     ## check for Triangle options
@@ -164,25 +166,25 @@ def main():
         grass.fatal(_("\n Use <max_area> option with <\"-a\" flag>"))
     if min_angle and not flags['q']:
         grass.fatal(_("\n Use <min_angle> option with <\"-q\" flag>"))
-    if in_lines:
-        if flags['a']:
-            if max_area:
-                flag_a = "-a%s" % max_area
-            else:
-                grass.fatal(_("\n To use flag <\"-a\"> choose <max_area> option"))
+    # if in_lines:
+    if flags['a']:
+        if max_area:
+            flag_a = "-a%s" % max_area
         else:
-            flag_a = ""
-        if flags['d']:
-            flag_d = "-D"
-        else:
-            flag_d = ""
-        if flags['q']:
-            flag_q = "-q -Y"
-            if min_angle:
-                flag_q = "-q%s" % min_angle
-        else:
-            flag_q = ""
-                
+            grass.fatal(_("\n To use flag <\"-a\"> choose <max_area> option"))
+    else:
+        flag_a = ""
+    if flags['d']:
+        flag_d = "-D"
+    else:
+        flag_d = ""
+    if flags['q']:
+        flag_q = "-q -Y"
+        if min_angle:
+            flag_q = "-q%s" % min_angle
+    else:
+        flag_q = ""
+        
     ############################################################
     ## prepare vectors to Triangle input
     grass.message(_("Prepare vectors to Triangle input..."))
@@ -250,6 +252,7 @@ def main():
                 for line in infile:
                     outfile.write(line)
 
+                    
     ## make *.poly file
     tmp_poly = tmp + '.poly'
     if in_lines:
@@ -257,72 +260,83 @@ def main():
             fout.write('0 2 1 1')
             fout.write('\n')
     
-    vert_num = sum(1 for line in open(tmp_lines_cut))
-    segm_num = (vert_num / 2)
+            vert_num = sum(1 for line in open(tmp_lines_cut))
+            segm_num = (vert_num / 2)
 
-    with open(tmp_poly, 'a') as fout:
-        fout.write('%s 1' % segm_num)
-        fout.write('\n')
+            with open(tmp_poly, 'a') as fout:
+                fout.write('%s 1' % segm_num)
+                fout.write('\n')
+                
+            tmp_num = tmp + '_num'
+            with open(tmp_num, 'w') as outfile:
+                with open(tmp_lines_cut) as infile:
+                    for num, line in enumerate(infile, 1):
+                        outfile.write('%s ' '%s' % (num, line))
+                        
+            tmp_num1 = tmp + '_num1'
+            tmp_num2 = tmp + '_num2'
+            tmp_num3 = tmp + '_num3'
+            tmp_num4 = tmp + '_num4'
+            tmp_num5 = tmp + '_num5'
+
+        with open(tmp_num1, 'w') as outfile1:
+            with open(tmp_num2, 'w') as outfile2:
+                with open(tmp_num) as infile:
+                    reader = csv.reader(infile, delimiter=' ')
+                    for row in reader:
+                        content = list(row[i] for i in [0])
+                        content = [int(i) for i in content]
+                        content2 = str(content).replace('[','').replace(']','')
+                        if int(content2) % 2:
+                            outfile1.write('%s' % content2)
+                            outfile1.write('\n')
+                        else:
+                            outfile2.write('%s' % content2)
+                            outfile2.write('\n')
+        numlist = []
+        with open(tmp_num) as infile:
+            reader = csv.reader(infile, delimiter=' ')
+            for row in reader:
+                content = list(row[i] for i in [4])
+                content = [int(i) for i in content]
+                numlist.append(content)
+
+        numlist2 = [item for sublist in numlist for item in sublist]
+        numlist3 = list(set(numlist2))
+
+        with open(tmp_num3, 'w') as outfile:
+            for item in numlist3:
+                outfile.write("%s\n" % item)
+
+        with open(tmp_num4, 'w') as outfile, open(tmp_num1) as f1, open(tmp_num2) as f2, open(tmp_num3) as f3:
+            for line1, line2, line3 in itertools.izip_longest(f1, f2, f3, fillvalue = ""):
+                outfile.write("{} {} {}\n".format(line1.rstrip(), line2.rstrip(), line3.rstrip()))
+
+        with open(tmp_num5, 'w') as outfile:
+            with open(tmp_num4) as infile:
+                for num, line in enumerate(infile, 1):
+                    outfile.write('%s ' '%s' % (num, line))
+
+        with open(tmp_poly, 'a') as outfile:
+            with open(tmp_num5) as infile:
+                for line in infile:
+                    outfile.write(line)
+            outfile.write('0')
+
+            
+        # with open(tmp_num4, 'r') as f:
+        #     print(f.read())
+        #     sys.exit(1)
     
-    tmp_num = tmp + '_num'    
-    with open(tmp_num, 'w') as outfile:
-        with open(tmp_lines_cut) as infile:
-            for num, line in enumerate(infile, 1):
-                outfile.write('%s ' '%s' % (num, line))
-
-    tmp_num1 = tmp + '_num1'
-    tmp_num2 = tmp + '_num2'
-    tmp_num3 = tmp + '_num3'
-    tmp_num4 = tmp + '_num4'
-    tmp_num5 = tmp + '_num5'
-
-    with open(tmp_num1, 'w') as outfile1:
-        with open(tmp_num2, 'w') as outfile2:
-            with open(tmp_num) as infile:
-                reader = csv.reader(infile, delimiter=' ')
-                for row in reader:
-                    content = list(row[i] for i in [0])
-                    content = [int(i) for i in content]
-                    content2 = str(content).replace('[','').replace(']','')
-                    if int(content2) % 2:
-                        outfile1.write('%s' % content2)
-                        outfile1.write('\n')
-                    else:
-                        outfile2.write('%s' % content2)
-                        outfile2.write('\n')
-    numlist = []
-    with open(tmp_num) as infile:
-        reader = csv.reader(infile, delimiter=' ')
-        for row in reader:
-            content = list(row[i] for i in [4])
-            content = [int(i) for i in content]
-            numlist.append(content)
-
-    numlist2 = [item for sublist in numlist for item in sublist]
-    numlist3 = list(set(numlist2))
-
-    with open(tmp_num3, 'w') as outfile:
-        for item in numlist3:
-            outfile.write("%s\n" % item)
-
-    with open(tmp_num4, 'w') as outfile, open(tmp_num1) as f1, open(tmp_num2) as f2, open(tmp_num3) as f3:
-        for line1, line2, line3 in itertools.izip_longest(f1, f2, f3, fillvalue = ""):
-            outfile.write("{} {} {}\n".format(line1.rstrip(), line2.rstrip(), line3.rstrip()))
-
-    with open(tmp_num5, 'w') as outfile:
-        with open(tmp_num4) as infile:
-            for num, line in enumerate(infile, 1):
-                outfile.write('%s ' '%s' % (num, line))
-
-    with open(tmp_poly, 'a') as outfile:
-        with open(tmp_num5) as infile:
-            for line in infile:
-                outfile.write(line)
-        outfile.write('0')
+        
+            
 
     ## let's triangulate
     grass.message(_("Triangulate..."))
-    subprocess.call(['triangle', '-Q', '-c', '-p', flag_a, flag_d, flag_q, tmp_poly], shell = False)
+    if in_lines:
+        subprocess.call(['triangle', '-Q', '-c', '-p', flag_a, flag_d, flag_q, tmp_poly], shell = False)
+    else:
+        subprocess.call(['triangle', '-Q', '-c', flag_a, flag_d, flag_q, tmp_node], shell = False)
 
     ## back from Triangle to GRASS
     grass.message(_("Back from Triangle to GRASS..."))
@@ -431,7 +445,7 @@ def main():
     grass.run_command('v.clean', input_ = 'V_TRIANGLE_TIN_RAW', output = 'V_TRIANGLE_TIN_CLEAN',
                       tool = ('bpol','rmdupl'), quiet = True, stderr = nuldev)
     ##
-    ## ?? there must be a little hack to make centroids with the right heights ??
+    ## ?? there must be a little hack to make centroids with the right heights (use <v.what>)  ??
     ##
     
     grass.run_command('v.centroids', input_ = 'V_TRIANGLE_TIN_CLEAN', output = out_tin,
