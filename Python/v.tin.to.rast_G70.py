@@ -83,7 +83,7 @@ def main():
     # check if vector map exists
     mapset = G_find_vector2(input, "")
     if not mapset:
-        grass.fatal("Vector map <%s> not found" % input)
+        grass.fatal("Vector map <%s> not found" % input)x
 
     # define map structure 
     map_info = pointer(Map_info())

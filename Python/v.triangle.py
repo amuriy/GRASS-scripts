@@ -116,7 +116,11 @@ if not grass.find_program('triangle'):
 grass_version = grass.version().get('version')[0:2]
 if grass_version != '7.':
     grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
-
+else:        
+    from grass.lib.gis    import *
+    from grass.lib.vector import *
+    from grass.lib.raster import *
+    
 def cleanup():
     nuldev = file(os.devnull, 'w')
     grass.try_remove(tmp)
@@ -312,13 +316,6 @@ def main():
             outfile.write('0')
 
             
-        # with open(tmp_num4, 'r') as f:
-        #     print(f.read())
-        #     sys.exit(1)
-    
-        
-            
-
     ## let's triangulate
     grass.message(_("Triangulate..."))
     if in_lines:
@@ -432,14 +429,57 @@ def main():
     ## cleanup and make areas
     grass.run_command('v.clean', input_ = 'V_TRIANGLE_TIN_RAW', output = 'V_TRIANGLE_TIN_CLEAN',
                       tool = ('bpol','rmdupl'), quiet = True, stderr = nuldev)
-    ##
-    ## ?? there must be a little hack to make centroids with the right heights (use <v.what>)  ??
-    ##
-    
     grass.run_command('v.centroids', input_ = 'V_TRIANGLE_TIN_CLEAN', output = out_tin,
                       quiet = True, stderr = nuldev)
+
+    grass.message(_("Compute 3D centroids of areas..."))
+    ## GRASS Ctypes library
+    # initialize
+    G_gisinit('')
+
+    # define map structure 
+    map_info = pointer(Map_info())    
+    # set vector topology to level 2 
+    Vect_set_open_level(2)
+
+    # check if vector map exists
+    mapset = G_find_vector2(out_tin, "")
+    if not mapset:
+        grass.fatal("Vector map <%s> not found" % out_tin)
     
-        
+    # open the vector map
+    Vect_open_old(map_info, out_tin, mapset)
+    Vect_maptype_info(map_info, out_tin, mapset)
+
+    # output ascii
+    asc = grass.read_command("v.out.ascii", input_ = out_tin,
+                             format_ = "standard", type_ = 'centroid')
+    result = asc.split("\n")
+
+    out_xyz = tmp + '.xyz'
+    with open(out_xyz, 'w') as fout:
+        for line in result:
+            if re.findall(r'^.[0-9]+\.',line):
+                x = line.split(" ")[1]
+                y = line.split(" ")[2]
+                dx = c_double(float(x))
+                dy = c_double(float(y))
+                z = c_double()
+            
+                Vect_tin_get_z(map_info, dx, dy, byref (z), None, None)
+                fout.write(str(dx.value) + ',' + str(dy.value) + ',' + str(z.value))
+                
+    Vect_close(map_info)
+
+    
+
+    
+    
+    return 0
+            
+
+
+            
 if __name__ == "__main__":
     options, flags = grass.parser()
     atexit.register(cleanup)
