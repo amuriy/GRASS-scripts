@@ -35,7 +35,7 @@
 #%  keywords: vector, geometry, TIN, triangulation
 #%End
 #%Option
-#%  key: masspoints
+#%  key: points
 #%  type: string
 #%  required: yes
 #%  multiple: no
@@ -44,7 +44,7 @@
 #%  gisprompt: old,vector,vector
 #%End
 #%Option
-#%  key: breaklines
+#%  key: lines
 #%  type: string
 #%  required: no
 #%  multiple: no
@@ -53,23 +53,13 @@
 #%  gisprompt: old,vector,vector
 #%End
 #%Option
-#%  key: out_tin
+#%  key: tin
 #%  type: string
 #%  required: yes
 #%  multiple: no
 #%  key_desc: name
 #%  description: Name of output vector map (TIN)
 #%  gisprompt: new,vector,vector
-#%End
-#%Option
-#%  key: br_type
-#%  type: string
-#%  required: no
-#%  multiple: no
-#%  key_desc: type
-#%  options: hard,soft
-#%  answer: hard
-#%  description: Type of breaklines (default is "hard")
 #%End
 #%Option
 #%  key: max_area
@@ -136,9 +126,9 @@ def cleanup():
                       quiet = True, stderr = nuldev)
 
 def main():
-    in_pts = options['masspoints']
-    in_lines = options['breaklines']
-    out_tin = options['out_tin']
+    in_pts = options['points']
+    in_lines = options['lines']
+    out_tin = options['tin']
     max_area = options['max_area']
     min_angle = options['min_angle']
     
@@ -215,8 +205,7 @@ def main():
                           format_ = 'point', sep = ' ', quiet = True, stderr = nuldev)
 
     ## make *.node file
-    tmp_pts_cut_0 = tmp_pts_cut + '_0'
-    
+    tmp_pts_cut_0 = tmp_pts_cut + '_0'    
     with open(tmp_pts_cut2,'r') as fin:
         with open (tmp_pts_cut_0,'w') as fout:
             writer = csv.writer(fout, delimiter=' ')            
@@ -225,7 +214,6 @@ def main():
                 writer.writerow(row)
 
     tmp_cut = tmp + '_cut'
-
     with open(tmp_cut, 'w') as outfile:
         if in_lines:
             filenames = [tmp_lines_cut, tmp_pts_cut_0]
@@ -238,7 +226,7 @@ def main():
                     outfile.write('%s ' '%s' % (num, line))
 
     num_lines = sum(1 for line in open(tmp_cut))
-
+    
     tmp_header = tmp + '_header'
     with open(tmp_header,'w') as fout:
         fout.write("%s 2 1 1" % num_lines)
@@ -260,25 +248,25 @@ def main():
             fout.write('0 2 1 1')
             fout.write('\n')
     
-            vert_num = sum(1 for line in open(tmp_lines_cut))
-            segm_num = (vert_num / 2)
+        vert_num = sum(1 for line in open(tmp_lines_cut))
+        segm_num = (vert_num / 2)
 
-            with open(tmp_poly, 'a') as fout:
-                fout.write('%s 1' % segm_num)
-                fout.write('\n')
-                
-            tmp_num = tmp + '_num'
-            with open(tmp_num, 'w') as outfile:
-                with open(tmp_lines_cut) as infile:
-                    for num, line in enumerate(infile, 1):
-                        outfile.write('%s ' '%s' % (num, line))
-                        
-            tmp_num1 = tmp + '_num1'
-            tmp_num2 = tmp + '_num2'
-            tmp_num3 = tmp + '_num3'
-            tmp_num4 = tmp + '_num4'
-            tmp_num5 = tmp + '_num5'
-
+        with open(tmp_poly, 'a') as fout:
+            fout.write('%s 1' % segm_num)
+            fout.write('\n')
+            
+        tmp_num = tmp + '_num'
+        with open(tmp_num, 'w') as outfile:
+            with open(tmp_lines_cut) as infile:
+                for num, line in enumerate(infile, 1):
+                    outfile.write('%s ' '%s' % (num, line))
+                    
+        tmp_num1 = tmp + '_num1'
+        tmp_num2 = tmp + '_num2'
+        tmp_num3 = tmp + '_num3'
+        tmp_num4 = tmp + '_num4'
+        tmp_num5 = tmp + '_num5'
+        
         with open(tmp_num1, 'w') as outfile1:
             with open(tmp_num2, 'w') as outfile2:
                 with open(tmp_num) as infile:
