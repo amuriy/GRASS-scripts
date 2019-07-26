@@ -89,6 +89,10 @@
 #%  key: a
 #%  description: Imposes a maximum triangle area constraint
 #%End
+#%Flag
+#%  key: c
+#%  description: Compute real 3D centroids for output TIN
+#%End
 ###########################################################################
 
 import sys
@@ -109,6 +113,10 @@ except:
             print "You must be in GRASS GIS to run this program."
             sys.exit(1)
 
+from grass.lib.gis    import *
+from grass.lib.vector import *
+from grass.lib.raster import *
+            
 if not grass.find_program('triangle'):
     if not grass.find_program('triangle.exe'):
         grass.fatal(_("<Triangle> utility required. Follow instructions on the official page (http://www.cs.cmu.edu/~quake/triangle.html) to install it."))
@@ -116,10 +124,6 @@ if not grass.find_program('triangle'):
 grass_version = grass.version().get('version')[0:2]
 if grass_version != '7.':
     grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
-else:        
-    from grass.lib.gis    import *
-    from grass.lib.vector import *
-    from grass.lib.raster import *
     
 def cleanup():
     nuldev = file(os.devnull, 'w')
@@ -432,59 +436,59 @@ def main():
     grass.run_command('v.centroids', input_ = 'V_TRIANGLE_TIN_CLEAN', output = out_tin,
                       quiet = True, stderr = nuldev)
 
-    grass.message(_("Compute 3D centroids of areas..."))
-    ## GRASS Ctypes library
-    # initialize
-    G_gisinit('')
+    if flags['c']:
+        grass.message(_("Compute 3D centroids of areas..."))
+        ## initialize GRASS Ctypes library
+        G_gisinit('')
 
-    # define map structure 
-    map_info = pointer(Map_info())    
-    # set vector topology to level 2 
-    Vect_set_open_level(2)
-
-    # check if vector map exists
-    mapset = G_find_vector2(out_tin, "")
-    if not mapset:
-        grass.fatal("Vector map <%s> not found" % out_tin)
-    
-    # open the vector map
-    Vect_open_old(map_info, out_tin, mapset)
-    Vect_maptype_info(map_info, out_tin, mapset)
-
-    # output ascii
-    asc = grass.read_command("v.out.ascii", input_ = out_tin,
-                             format_ = "standard", type_ = 'centroid')
-    result = asc.split("\n")
-
-    out_xyz = tmp + '.xyz'
-    with open(out_xyz, 'w') as fout:
-        for line in result:
-            if re.findall(r'^.[0-9]+\.',line):
-                x = line.split(" ")[1]
-                y = line.split(" ")[2]
-                dx = c_double(float(x))
-                dy = c_double(float(y))
-                z = c_double()
+        # define map structure 
+        map_info = pointer(Map_info())    
+        # set vector topology to level 2 
+        Vect_set_open_level(2)
+        
+        # check if vector map exists
+        mapset = G_find_vector2(out_tin, "")
+        if not mapset:
+            grass.fatal("Vector map <%s> not found" % out_tin)
             
-                Vect_tin_get_z(map_info, dx, dy, byref (z), None, None)
-                fout.write(str(dx.value) + ',' + str(dy.value) + ',' + str(z.value) + '\n')
+        # open the vector map
+        Vect_open_old(map_info, out_tin, mapset)
+        Vect_maptype_info(map_info, out_tin, mapset)
+            
+        # output ascii
+        asc = grass.read_command("v.out.ascii", input_ = out_tin,
+                                     format_ = "standard", type_ = 'centroid')
+        result = asc.split("\n")
+        
+        out_xyz = tmp + '.xyz'
+        with open(out_xyz, 'w') as fout:
+            for line in result:            
+                if re.findall(r'^.[0-9]+\.',line):                
+                    line2 = ' '.join(line.split())
+                    x = line2.split(' ')[0]
+                    y = line2.split(' ')[1]
+                    dx = c_double(float(x))
+                    dy = c_double(float(y))
+                    z = c_double()
+                    
+                    Vect_tin_get_z(map_info, dx, dy, byref (z), None, None)
+                    fout.write(str(dx.value) + ',' + str(dy.value) + ',' + str(z.value) + '\n')
                 
-    Vect_close(map_info)
+        Vect_close(map_info)
 
-    with open(out_xyz) as f:
-        print f.read()
+        grass.run_command('v.in.ascii', flags = 'zn', input_ = out_xyz, output = 'V_TRIANGLE_TIN_CENT',
+                          format_ = 'point', sep = ',', z = 3, quiet = True, stderr = nuldev)
+        grass.run_command('v.type', input_ = 'V_TRIANGLE_TIN_CENT', output = 'V_TRIANGLE_TIN_CENT2',
+                          from_type = 'point', to_type = 'centroid', quiet = True, stderr = nuldev)
+        grass.run_command('v.edit', map_ = out_tin, tool = 'delete', type_ = 'centroid', 
+                          ids = '0-99999999', quiet = True, stderr = nuldev)
+        grass.run_command('v.edit', map_ = out_tin, bgmap = 'V_TRIANGLE_TIN_CENT2', tool = 'copy', 
+                          type_ = 'centroid', ids = '0-99999999', quiet = True, stderr = nuldev)
 
-    grass.run_command('v.in.ascii', flags = 'zn', input_ = out_xyz, output = 'V_TRIANGLE_TIN_CENT',
-                      format_ = 'point', sep = ',', z = 3, quiet = True, stderr = nuldev)
-    grass.run_command('v.type', input_ = 'V_TRIANGLE_TIN_CENT', output = 'V_TRIANGLE_TIN_CENT2',
-                      from_type = 'point', to_type = 'centroid', quiet = True, stderr = nuldev)
-
-    # now v.edit to remove old centroids, then v.patch or v.edit to insert new ones
-    
-    return 0
+        return 0
             
 
-
+    
             
 if __name__ == "__main__":
     options, flags = grass.parser()
