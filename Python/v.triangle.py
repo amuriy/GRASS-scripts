@@ -475,9 +475,11 @@ def main():
         print f.read()
 
     grass.run_command('v.in.ascii', flags = 'zn', input_ = out_xyz, output = 'V_TRIANGLE_TIN_CENT',
-                      format_ = 'point', sep = ',', quiet = True, stderr = nuldev)
+                      format_ = 'point', sep = ',', z = 3, quiet = True, stderr = nuldev)
     grass.run_command('v.type', input_ = 'V_TRIANGLE_TIN_CENT', output = 'V_TRIANGLE_TIN_CENT2',
-                      from_type = 'point', to_type = 'centroid')
+                      from_type = 'point', to_type = 'centroid', quiet = True, stderr = nuldev)
+
+    # now v.edit to remove old centroids, then v.patch or v.edit to insert new ones
     
     return 0
             
