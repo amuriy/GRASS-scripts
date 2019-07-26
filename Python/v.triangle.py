@@ -476,7 +476,7 @@ def main():
 
     grass.run_command('v.in.ascii', flags = 'zn', input_ = out_xyz, output = 'V_TRIANGLE_TIN_CENT',
                       format_ = 'point', sep = ',', quiet = True, stderr = nuldev)
-    grass.run_command('v.type', input_ = 'V_TRIANGLE_TIN_CENT', output = 'V_TRIANGLE_TIN_CENT2'
+    grass.run_command('v.type', input_ = 'V_TRIANGLE_TIN_CENT', output = 'V_TRIANGLE_TIN_CENT2',
                       from_type = 'point', to_type = 'centroid')
     
     return 0
