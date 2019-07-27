@@ -31,7 +31,7 @@
 #
 ############################################################################
 #%Module 
-#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. In GIS terminology, it produces TIN, optionally with "hard breaklines" and also with the angle or area constraints. Conforming constrained Delaunay triangulation (CCDT) is made by default.
+#%  description: Front-end for <Triangle> utility of J.R. Shewchuk. Make constrained Delaunay triangulations, conforming Delaunay triangulations and high-quality triangular meshes. In GIS terminology, it produces TIN, optionally with "hard breaklines" and also with the angle or area constraints. Constrained Delaunay triangulation is made by default.
 #%  keywords: vector, geometry, TIN, triangulation
 #%End
 #%Option
