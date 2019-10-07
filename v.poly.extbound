@@ -17,10 +17,10 @@ v.category in=${vect}_CENTR_EDIT out=${vect}_CENTR_EDIT_ACATS option=add cat=1 s
 
 ACATS=$(v.category -g in=${vect}_CENTR_EDIT_ACATS opt=report | grep "centroid" | cut -d' ' -f5)
 
-v.extract in=${vect}_CENTR_EDIT_ACATS out=${vect}_CENTR_EDIT_ACATS_EXTRACT type=area new=1 list=$ACATS --o --q
+v.extract in=${vect}_CENTR_EDIT_ACATS out=${vect}_CENTR_EDIT_ACATS_EXTRACT type=area new=1 cats=$ACATS --o --q
 
 v.dissolve in=${vect}_CENTR_EDIT_ACATS_EXTRACT out=$ext --o --q
 
 
 ## cleanup
-g.mremove -f vect="${vect}_CENTR_EDIT*"
+g.remove -f type=vect pat="${vect}_CENTR_EDIT*"
