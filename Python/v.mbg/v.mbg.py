@@ -175,7 +175,6 @@ def mbg_make(in_vect, hull_coords, out_vect):
         rand = random_name()
         cpoints_map = prefix + rand
         nparray_to_vector(corner_points, cpoints_map)
-
         hull_make(cpoints_map, out_vect)
     elif geom_type in 'convex_hull':
         hull_make(in_vect, out_vect)
@@ -295,6 +294,11 @@ def main():
     g.region(save = 'TMP_REGION_V_MBG')
     
     ## main ##
+    db_info = get_db_info(inmap)
+    print(db_info)
+
+    attr_dict = {}
+    
     # check for <group> option
     if group == 'none':
         # test input feature type
@@ -313,10 +317,7 @@ def main():
             v.out_ogr(input_ = outmap_edit, output = export, output_layer = 'tmp',
                       flags = 'n', format_ = 'GPKG', quiet = True, stderr = nuldev)
 
-        
-        db_info = get_db_info(inmap)
-        print(db_info)
-        
+                
         
         # extract features
         for index, value in enumerate(group_list):
@@ -325,14 +326,14 @@ def main():
                 v.extract(input = inmap, where = 'cat == "{}"'.format(value),
                           output = extr, quiet = True, stderr = nuldev)
             except CalledModuleError:
-                grass.fatal(_('Cannot extract data with <group> option and compute convex hull... Make sure that there is no points in the input map with <group=none> option or check attributes values for special characters in the input vector map with <group=list> option'.format(inmap))) 
+                grass.fatal(_('Cannot extract data with <group> option and compute convex hull... Make sure that there is no points in the input map with <group=none> option or check attributes values for special characters in the input vector map with <group=list> option'.format(inmap)))
 
             
 
-            attr_dict = grass.vector_db_select(extr)['values']
-            print(attr_dict)
-            
+            attr_val = grass.vector_db_select(extr)['values']
+            attr_dict.update(attr_val)
 
+            
 
             extr_hull = prefix + '_extr_' + str(index) + '_hull'
             hull_make(extr, extr_hull) 
@@ -359,11 +360,15 @@ def main():
 
         g.rename(vector = (outmap_edit, outmap), overwrite = True)
 
+        v.db_select(map_ = outmap)
+        
         # vect = VectorTopo(outmap)
         # vect.open('w', tab_cols=cols)
-        
-        
 
+        
+        print(attr_dict)
+
+        
     elif group == 'all':
         rand = random_name()
         all_hull = prefix + rand
