@@ -360,7 +360,7 @@ def main():
 
         g.rename(vector = (outmap_edit, outmap), overwrite = True)
 
-        v.db_select(map_ = outmap)
+        # v.db_select(map_ = outmap)
         
         # vect = VectorTopo(outmap)
         # vect.open('w', tab_cols=cols)
