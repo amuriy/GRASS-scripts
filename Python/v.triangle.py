@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 ############################################################################
 #
@@ -106,7 +106,7 @@ except:
         from grass.script import core as grass
     except:
         if not os.environ.has_key("GISBASE"):
-            print "You must be in GRASS GIS to run this program."
+            print("You must be in GRASS GIS to run this program.")
             sys.exit(1)
 
 from grass.lib.gis    import *
