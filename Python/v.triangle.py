@@ -4,7 +4,6 @@
 #
 # MODULE:       v.triangle
 # AUTHOR(S):    Alexander Muriy
-#               (Institute of Environmental Geoscience, Moscow, Russia)  
 #               e-mail: amuriy AT gmail DOT com 
 #
 # PURPOSE:      Front-end for <Triangle> utility
@@ -17,7 +16,7 @@
 #               and also with the angle or area constraints. Constrained Delaunay
 #               triangulation is made by default.
 #
-# COPYRIGHT:    (C) 2012,2016,2019 Alexander Muriy / GRASS Development Team
+# COPYRIGHT:    (C) 2012,2016,2019,2020 Alexander Muriy / GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -122,7 +121,7 @@ if grass_version != '7.':
     grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
     
 def cleanup():
-    nuldev = file(os.devnull, 'w')
+    nuldev = open(os.devnull, 'w')
     grass.try_remove(tmp)
     for f in glob.glob(tmp + '*'):
         grass.try_remove(f)
@@ -301,7 +300,7 @@ def main():
                 outfile.write("%s\n" % item)
 
         with open(tmp_num4, 'w') as outfile, open(tmp_num1) as f1, open(tmp_num2) as f2, open(tmp_num3) as f3:
-            for line1, line2, line3 in itertools.izip_longest(f1, f2, f3, fillvalue = ""):
+            for line1, line2, line3 in itertools.zip_longest(f1, f2, f3, fillvalue = ""):
                 outfile.write("{} {} {}\n".format(line1.rstrip(), line2.rstrip(), line3.rstrip()))
 
         with open(tmp_num5, 'w') as outfile:
