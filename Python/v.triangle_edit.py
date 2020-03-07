@@ -336,6 +336,7 @@ def main():
     out_ele2 = out_ele + '2'
     out_ele3 = out_ele + '3'
 
+    ## head + tail
     with open(out_node, 'r') as f:
         data = f.read().splitlines(True)
         with open(out_node2, 'w') as fout:
@@ -345,6 +346,8 @@ def main():
         data = f.read().splitlines(True)
         with open(out_node3, 'w') as fout:
             fout.writelines(data[:-1])
+    ## head + tail
+            
 
     with open(out_node4, 'w') as fout:
         with open(out_node3) as fin:
