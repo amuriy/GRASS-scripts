@@ -100,7 +100,7 @@ export LC_NUMERIC=C
 ############################################################
 cleanup()
 {
-    g.mremove -f vect="TMP*" --quiet
+    g.remove -f type=vect pat="TMP*" --quiet
     \rm -f "$TMP1*" 
 }
 ############################################################
@@ -252,7 +252,7 @@ DIST = DIST + STEP;
     fi
 
 # segment all with v.segment 
-    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" file="$TMP1.dist.lines.clean"
+    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" rules="$TMP1.dist.lines.clean"
         
 # assign new cat to every segment line
     v.category input="$GIS_OPT_OUTPUT" output=TMP_nocats option=del --q
@@ -335,7 +335,7 @@ DIST = DIST + STEP;
     fi
 
 # segment all with v.segment 
-    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" file="$TMP1.dist.pts.clean" 
+    v.segment input="$GIS_OPT_INPUT" output="$GIS_OPT_OUTPUT" rules="$TMP1.dist.pts.clean" 
 
 # assign new cat to every point
     v.category input="$GIS_OPT_OUTPUT" output=TMP_nocats option=del --q

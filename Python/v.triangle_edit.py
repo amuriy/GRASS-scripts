@@ -96,7 +96,9 @@ import glob
 import atexit
 import csv
 import itertools
-import subprocess 
+import subprocess
+
+import re
 
 try:
     import grass.script as grass
@@ -186,13 +188,21 @@ def main():
     grass.run_command('v.out.ascii', input_ = in_pts, output = tmp_pts_cut,
                       sep = ' ', quiet = True, stderr = nuldev)
 
+    pts_list = open(tmp_pts_cut).read().strip().split('\n')
+    r = re.compile('[0-9]+$')
+    pts_list2 = [r.sub('0', x) for x in pts_list]
+    # print(pts_list2)
+
+    ## OLD
     tmp_pts_cut2 = tmp_pts_cut + '2'
     with open(tmp_pts_cut,'r') as fin:
         with open (tmp_pts_cut2,'w') as fout:
             writer = csv.writer(fout, delimiter=' ')            
             for row in csv.reader(fin, delimiter=' '):
                 writer.writerow(row[0:3])
+    ## OLD    
 
+    
     if in_lines:
         grass.run_command('v.split', input_ = in_lines, output = 'V_TRIANGLE_CUT_SEGM',
                           vertices = '2', quiet = True, stderr = nuldev)
@@ -207,7 +217,12 @@ def main():
         grass.run_command('v.out.ascii', input_ = 'V_TRIANGLE_CUT_PTS', output = tmp_lines_cut,
                           format_ = 'point', sep = ' ', quiet = True, stderr = nuldev)
 
+        lin_list = open(tmp_lines_cut).read().strip().split('\n')        
+        # print(lin_list)        
+
     ## make *.node file
+    
+    ## OLD
     tmp_pts_cut_0 = tmp_pts_cut + '_0'    
     with open(tmp_pts_cut2,'r') as fin:
         with open (tmp_pts_cut_0,'w') as fout:
@@ -215,26 +230,42 @@ def main():
             for row in csv.reader(fin, delimiter=' '):
                 row.append('0')
                 writer.writerow(row)
-
+    ## OLD
+    
     tmp_cut = tmp + '_cut'
     with open(tmp_cut, 'w') as outfile:
         if in_lines:
             filenames = [tmp_lines_cut, tmp_pts_cut_0]
         else:
             filenames = [tmp_pts_cut_0]
-
+    
         for fname in filenames:
             with open(fname) as infile:
                 for num, line in enumerate(infile, 1):
                     outfile.write('%s ' '%s' % (num, line))
+    
 
+    tmp_cut_list = []
+    if in_lines:
+        for idx, val in enumerate(lin_list, start = 1):
+            tmp_cut_list.append("%s %s" % (idx, val))
+    for idx, val in enumerate(pts_list2, start = 1):
+        tmp_cut_list.append("%s %s" % (idx, val))
+
+    num_lines = len(tmp_cut_list)
+
+    ## OLD
     num_lines = sum(1 for line in open(tmp_cut))
+    ## OLD
+
     
     tmp_header = tmp + '_header'
     with open(tmp_header,'w') as fout:
         fout.write("%s 2 1 1" % num_lines)
         fout.write('\n')
 
+    tmp_cut_list.insert(0, "%s 2 1 1" % num_lines)
+    
     tmp_node = tmp + '.node'    
     filenames = [tmp_header, tmp_cut]
     with open(tmp_node, 'w') as outfile:
@@ -242,6 +273,9 @@ def main():
             with open(fname) as infile:
                 for line in infile:
                     outfile.write(line)
+
+    with open(tmp_node,'r') as f:
+        print(f.read())
 
                     
     ## make *.poly file
@@ -336,7 +370,6 @@ def main():
     out_ele2 = out_ele + '2'
     out_ele3 = out_ele + '3'
 
-    ## head + tail
     with open(out_node, 'r') as f:
         data = f.read().splitlines(True)
         with open(out_node2, 'w') as fout:
@@ -346,8 +379,6 @@ def main():
         data = f.read().splitlines(True)
         with open(out_node3, 'w') as fout:
             fout.writelines(data[:-1])
-    ## head + tail
-            
 
     with open(out_node4, 'w') as fout:
         with open(out_node3) as fin:
