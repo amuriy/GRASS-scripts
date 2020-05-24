@@ -10,7 +10,7 @@
 #               minimum bounding geometry enclosing each input feature or each group
 #               of input features
 #
-# COPYRIGHT:    (C) 2019 by the GRASS Development Team
+# COPYRIGHT:    (C) 2019-2020 by the GRASS Development Team
 #
 #               This program is free software under the GNU General Public
 #               License (>=v2). Read the file COPYING that comes with GRASS
@@ -295,6 +295,7 @@ def main():
     
     ## main ##
     db_info = get_db_info(inmap)
+
     print(db_info)
 
     attr_dict = {}
@@ -316,8 +317,8 @@ def main():
         if export:
             v.out_ogr(input_ = outmap_edit, output = export, output_layer = 'tmp',
                       flags = 'n', format_ = 'GPKG', quiet = True, stderr = nuldev)
-
-                
+        
+        
         
         # extract features
         for index, value in enumerate(group_list):
@@ -327,17 +328,17 @@ def main():
                           output = extr, quiet = True, stderr = nuldev)
             except CalledModuleError:
                 grass.fatal(_('Cannot extract data with <group> option and compute convex hull... Make sure that there is no points in the input map with <group=none> option or check attributes values for special characters in the input vector map with <group=list> option'.format(inmap)))
-
+                
             
-
+            
             attr_val = grass.vector_db_select(extr)['values']
             attr_dict.update(attr_val)
-
             
-
+            
+            
             extr_hull = prefix + '_extr_' + str(index) + '_hull'
             hull_make(extr, extr_hull) 
-
+            
             hull_coords = hull_get_coords(extr_hull)
             extr_mbg = prefix + '_mbg_' + str(index)
             extr_mbg_list.append(extr_mbg)
@@ -349,7 +350,7 @@ def main():
                 v.out_ogr(input = extr_mbg, output = export, type_ = 'area',
                           output_layer = lyr_name,
                           flags = 'u', format_ = 'GPKG')
-
+            
             rand = random_name()
             bound_cats = prefix + rand            
             v.category(input_ = extr_mbg, output = bound_cats, option = 'add',
@@ -357,14 +358,17 @@ def main():
                        quiet = True, stderr = nuldev)        
             v.edit(map_ = outmap_edit, tool = 'copy', bgmap = bound_cats,
                    type_ = 'boundary', cats = 1)
-
-        g.rename(vector = (outmap_edit, outmap), overwrite = True)
+            
+            
+            
+            
+            g.rename(vector = (outmap_edit, outmap), overwrite = True)
 
         # v.db_select(map_ = outmap)
         
         # vect = VectorTopo(outmap)
         # vect.open('w', tab_cols=cols)
-
+        
         
         print(attr_dict)
 
