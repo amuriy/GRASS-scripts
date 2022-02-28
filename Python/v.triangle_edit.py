@@ -119,8 +119,8 @@ if not grass.find_program('triangle'):
         grass.fatal(_("<Triangle> utility required. Follow instructions on the official page (http://www.cs.cmu.edu/~quake/triangle.html) to install it."))
 
 grass_version = grass.version().get('version')[0:2]
-if grass_version != '7.':
-    grass.fatal(_("Sorry, this script works in GRASS 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
+if grass_version < '7.':
+    grass.fatal(_("Sorry, this script works in GRASS >= 7.* only. For GRASS 6.4.* use shell script <v.triangle>"))
     
 def cleanup():
     nuldev = open(os.devnull, 'w')
